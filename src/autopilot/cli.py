@@ -248,8 +248,6 @@ def doctor(a):
         check(False, "", f"no AI tool is installed. Install {INSTALL}")
     check(bool(spec.config().get("ntfy_topic")), "phone alerts are on", "phone alerts are off. Run: autopilot setup")
     if s:
-        for p in s["device"]["problems"]:
-            check(False, "", p)
         for j in s["jobs"]:
             if j["status"] in ("broken", "failed"):
                 check(False, "", f"{j['name']}: {j['error'] or (j['last'] or {}).get('summary') or j['status']}")
@@ -310,6 +308,9 @@ def uninstall(a):
 def main():
     if sys.argv[1:2] == ["_job"] and len(sys.argv) == 4:  # started by the background program for one run
         return runner.main(sys.argv[2], sys.argv[3])
+    for out in (sys.stdout, sys.stderr):
+        if out:  # pythonw has none. a windows pipe is cp1252 and would crash on a job's emoji
+            out.reconfigure(errors="replace")
     p = argparse.ArgumentParser(prog="autopilot", description="Jobs that run by themselves, built by AI from plain English.")
     p.add_argument("--version", action="version", version=__version__)
     sub = p.add_subparsers(dest="cmd", metavar="command")
