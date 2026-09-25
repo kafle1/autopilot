@@ -1,0 +1,24 @@
+[project]
+name = "autopilot"
+dynamic = ["version"]
+description = "Jobs that run by themselves on your computer, built by AI from plain English."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Niraj Kafle" }]
+
+[project.urls]
+Homepage = "https://github.com/kafle1/autopilot"
+
+[project.scripts]
+autopilot = "autopilot.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/autopilot/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/autopilot"]

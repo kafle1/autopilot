@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Autopilot</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#4f46e5">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1e1b4b">
+<style>
+:root{
+  --bg:#f3f4f8; --surface:#ffffff; --text:#161821; --text-dim:#6b7280; --border:#e3e5ea;
+  --accent:#4f46e5; --accent-contrast:#ffffff; --btn-bg:#eef0f4; --btn-text:#161821;
+  --danger:#dc2626; --danger-bg:#fee2e2; --ok:#16a34a; --ok-bg:#dcfce7;
+  --warn:#d97706; --warn-bg:#fef3c7; --info:#2563eb; --info-bg:#dbeafe;
+  --gray:#6b7280; --gray-bg:#e5e7eb; --purple:#7c3aed; --purple-bg:#ede9fe;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#111318; --surface:#1b1e26; --text:#e7e9ee; --text-dim:#9aa1ad; --border:#2a2e38;
+    --accent:#818cf8; --accent-contrast:#0b0b12; --btn-bg:#242833; --btn-text:#e7e9ee;
+    --danger:#f87171; --danger-bg:#3f1d1d; --ok:#4ade80; --ok-bg:#14351f;
+    --warn:#fbbf24; --warn-bg:#3a2a0d; --info:#60a5fa; --info-bg:#122a4a;
+    --gray:#9aa1ad; --gray-bg:#262a33; --purple:#c4b5fd; --purple-bg:#2c2350;
+  }
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;width:100%;overflow-x:hidden;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+#topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:4px;padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--border);}
+#topbar-title{flex:1;font-weight:600;font-size:17px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.iconbtn{width:44px;height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;background:none;border:none;font-size:20px;color:var(--text);border-radius:8px;cursor:pointer;}
+.iconbtn:active{background:var(--btn-bg);}
+.offline-banner{background:var(--warn-bg);color:var(--warn);padding:10px 16px;text-align:center;font-size:14px;}
+#app{max-width:900px;margin:0 auto;padding:16px;padding-bottom:70px;}
+.hidden{display:none !important;}
+.toast{position:fixed;left:16px;right:16px;bottom:16px;max-width:868px;margin:0 auto;background:var(--surface);color:var(--text);border:1px solid var(--border);padding:12px 16px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.2);text-align:center;font-size:14px;z-index:50;}
+.toast-error{border-color:var(--danger);color:var(--danger);}
+.btn{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--border);background:var(--btn-bg);color:var(--btn-text);font-size:15px;font-weight:500;cursor:pointer;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast);}
+.btn-danger{background:var(--danger-bg);border-color:var(--danger);color:var(--danger);}
+.btn-ghost{background:transparent;text-decoration:none;display:inline-flex;align-items:center;}
+.btn-block{width:100%;margin:10px 0;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;}
+.problem-card{background:var(--warn-bg);color:var(--warn);border-color:var(--warn);font-size:14px;}
+.device-bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.device-name{flex:1;font-size:19px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.job-head{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;padding:0 0 8px 0;font-size:16px;font-weight:600;color:var(--text);text-align:left;cursor:pointer;font-family:inherit;}
+.job-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px;}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;flex:none;}
+.pill-running{background:var(--info-bg);color:var(--info);}
+.pill-ok{background:var(--ok-bg);color:var(--ok);}
+.pill-failed{background:var(--danger-bg);color:var(--danger);}
+.pill-paused{background:var(--gray-bg);color:var(--gray);}
+.pill-broken{background:var(--warn-bg);color:var(--warn);}
+.pill-idle{background:var(--gray-bg);color:var(--gray);}
+.pill-building{background:var(--purple-bg);color:var(--purple);}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.pulse{animation:pulse 1.2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.job-meta{font-size:13px;color:var(--text-dim);margin-top:2px;}
+.job-summary{font-size:13px;color:var(--text-dim);margin-top:4px;font-style:italic;}
+.action-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center;}
+.section{margin-top:22px;}
+.section h3{font-size:15px;margin:0 0 8px 0;}
+.logbox{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;white-space:pre-wrap;word-break:break-word;max-height:60vh;overflow:auto;margin-top:8px;}
+.run-select{width:100%;min-height:44px;padding:0 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;}
+textarea,.name-input,.code-input,.delete-input{font-family:inherit;}
+.build-textarea,.new-textarea,.settings-textarea,.file-textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:15px;background:var(--surface);color:var(--text);margin:8px 0;}
+.file-textarea,.settings-textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;}
+.file-row{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:44px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);margin-bottom:6px;font-size:14px;font-family:inherit;cursor:pointer;text-align:left;}
+.file-path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px;}
+.file-size{color:var(--text-dim);flex:none;font-size:12px;}
+.file-editor{margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);}
+.file-editor-title{font-weight:600;margin-bottom:6px;font-size:14px;word-break:break-all;}
+.row-buttons{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;}
+.saved-note{color:var(--ok);font-size:13px;}
+.error-text{color:var(--danger);font-size:13px;margin-top:6px;}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;}
+.chip{min-height:44px;padding:8px 14px;border-radius:14px;border:1px solid var(--border);background:var(--btn-bg);color:var(--text);font-size:13px;cursor:pointer;text-align:left;max-width:100%;}
+.field{margin:14px 0;}
+.field label{display:block;font-size:13px;color:var(--text-dim);margin-bottom:6px;}
+.name-input,.code-input,.delete-input{width:100%;min-height:44px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:16px;}
+.signin-box{max-width:400px;margin:50px auto;padding:20px;text-align:center;}
+.signin-box .code-input{text-align:center;letter-spacing:8px;font-size:24px;margin:16px 0;}
+.engine-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;}
+.engine-row.dim{opacity:.55;}
+.engine-name{flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.engine-tag{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--gray-bg);color:var(--gray);flex:none;}
+.engine-tag.found{background:var(--ok-bg);color:var(--ok);}
+.phone-code{font-size:32px;font-weight:700;letter-spacing:8px;text-align:center;margin:12px 0;}
+.phone-url{word-break:break-all;color:var(--accent);font-size:14px;display:block;margin:6px 0;}
+.delete-confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%;margin-top:8px;}
+.delete-confirm .delete-input{flex:1;min-width:140px;}
+.muted{color:var(--text-dim);font-size:14px;}
+.center{text-align:center;padding:30px 10px;}
+h2{font-size:19px;margin:0 0 8px 0;}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <button id="back-btn" class="iconbtn hidden" aria-label="Back">&#8249;</button>
+  <div id="topbar-title">Autopilot</div>
+  <button id="gear-btn" class="iconbtn" aria-label="Settings">&#9881;</button>
+</div>
+<div id="offline-banner" class="offline-banner hidden">Can't reach the computer. Is it on and awake?</div>
+<div id="app"></div>
+<div id="toast" class="toast hidden"></div>
+<script>
+"use strict";
+
+var state = null;
+var signedOut = false;
+var logName = null, logBoxEl = null, logRunSelectEl = null, followingLatestLog = true, detailKey = null;
+var extraTimers = [];
+
+var EXAMPLES = [
+  {label:"PhD fellowships", text:"Every morning at 8, find new fully funded PhD fellowships in computer science open to Nepali students and add them to fellowships.md, sorted by deadline. Alert me when there is a new one."},
+  {label:"Website uptime check", text:"Every 30 minutes, check if my website https://example.com is up and alert me if it is down."},
+  {label:"Clean Downloads weekly", text:"Every Sunday at 10, clean my Downloads folder: move files older than 30 days into Downloads/old."}
+];
+
+/* ---------- tiny DOM helper (never uses innerHTML) ---------- */
+function el(tag, attrs) {
+  var e = document.createElement(tag);
+  attrs = attrs || {};
+  for (var k in attrs) {
+    if (k === "class") e.className = attrs[k];
+    else if (k.indexOf("on") === 0 && typeof attrs[k] === "function") e.addEventListener(k.slice(2), attrs[k]);
+    else e.setAttribute(k, attrs[k]);
+  }
+  for (var i = 2; i < arguments.length; i++) {
+    var c = arguments[i];
+    if (c === null || c === undefined) continue;
+    e.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  }
+  return e;
+}
+
+/* ---------- formatting ---------- */
+function fmtRelative(epoch) {
+  if (epoch === null || epoch === undefined) return "";
+  var diff = epoch - Date.now() / 1000;
+  var abs = Math.abs(diff);
+  var future = diff >= 0;
+  if (abs < 45) return future ? "in a few sec" : "just now";
+  var mins = Math.round(abs / 60);
+  if (mins < 60) return future ? "in " + mins + " min" : mins + " min ago";
+  var hours = Math.round(abs / 3600);
+  if (hours < 24) return future ? "in " + hours + " h" : hours + " h ago";
+  var days = Math.round(abs / 86400);
+  return future ? "in " + days + " d" : days + " d ago";
+}
+function fmtExact(epoch) {
+  if (epoch === null || epoch === undefined) return "";
+  return new Date(epoch * 1000).toLocaleString();
+}
+function timeSpan(epoch) {
+  return el("span", {title: fmtExact(epoch)}, fmtRelative(epoch));
+}
+function timeLine(prefix, epoch) {
+  return el("div", {class: "job-meta"}, prefix, timeSpan(epoch));
+}
+function truncate(s, n) {
+  if (!s) return "";
+  return s.length > n ? s.slice(0, n - 1) + "…" : s;
+}
+function formatSize(n) {
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return Math.round(n / 1024) + " KB";
+  return (n / 1024 / 1024).toFixed(1) + " MB";
+}
+function fmtTrigger(trigger) {
+  if (!trigger || trigger === "by hand") return "By hand";
+  if (trigger === "always on") return "Always on";
+  if (trigger.indexOf("every ") === 0) return "Runs " + trigger;
+  var m = /^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+\*$/.exec(trigger);
+  if (m) return "Runs every day at " + m[2].padStart(2, "0") + ":" + m[1].padStart(2, "0");
+  return trigger;
+}
+
+/* ---------- network ---------- */
+function showOffline() { document.getElementById("offline-banner").classList.remove("hidden"); }
+function hideOffline() { document.getElementById("offline-banner").classList.add("hidden"); }
+
+var toastTimer = null;
+function toast(msg, isError) {
+  var t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.remove("hidden");
+  t.classList.toggle("toast-error", !!isError);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.add("hidden"); }, 3000);
+}
+
+function api(path, opts) {
+  opts = opts || {};
+  var headers = {"X-Autopilot": "1"};
+  if (opts.headers) for (var k in opts.headers) headers[k] = opts.headers[k];
+  if (opts.body) headers["Content-Type"] = "application/json";
+  var reqOpts = {method: opts.method, body: opts.body, headers: headers, credentials: "same-origin"};
+  return fetch(path, reqOpts).catch(function () {
+    showOffline();
+    throw new Error("offline");
+  }).then(function (res) {
+    hideOffline();
+    var ctype = res.headers.get("content-type") || "";
+    var isJson = ctype.indexOf("application/json") !== -1;
+    return (isJson ? res.json() : res.text()).catch(function () { return null; }).then(function (data) {
+      if (res.status === 401) {
+        if (!signedOut) { signedOut = true; render(); }
+        throw new Error("unauthorized");
+      }
+      if (!res.ok) {
+        var msg = (data && typeof data === "object" && data.error) ? data.error : "Something went wrong.";
+        throw new Error(msg);
+      }
+      return data;
+    });
+  });
+}
+
+/* ---------- routing ---------- */
+function parseRoute() {
+  var h = location.hash || "#/";
+  if (h === "#/" || h === "") return {page: "home"};
+  if (h.indexOf("#/job/") === 0) return {page: "job", name: decodeURIComponent(h.slice(6))};
+  if (h === "#/new") return {page: "new"};
+  if (h === "#/settings") return {page: "settings"};
+  return {page: "home"};
+}
+
+function updateTopbar(r) {
+  var back = document.getElementById("back-btn");
+  var gear = document.getElementById("gear-btn");
+  var title = document.getElementById("topbar-title");
+  back.classList.toggle("hidden", r.page === "home");
+  gear.classList.toggle("hidden", r.page === "settings");
+  title.textContent = r.page === "home" ? "Autopilot" : r.page === "new" ? "New autopilot" : r.page === "settings" ? "Settings" : (r.name || "Autopilot");
+}
+
+function render() {
+  var r = parseRoute();
+  document.getElementById("topbar").classList.remove("hidden");
+  updateTopbar(r);
+  if (signedOut) { renderSignIn(); return; }
+  var root = document.getElementById("app");
+  root.textContent = "";
+  if (!state) { root.appendChild(el("div", {class: "muted center"}, "Loading…")); return; }
+  if (r.page === "home") renderHome(root);
+  else if (r.page === "job") renderJobPage(root, r.name);
+  else if (r.page === "new") renderNewPage(root);
+  else if (r.page === "settings") renderSettingsPage(root);
+}
+
+async function refreshState() {
+  try { state = await api("/api/state"); } catch (e) { return; }
+  var r = parseRoute();
+  if (r.page === "home") render();
+  else if (r.page === "job") refreshJobTop();
+}
+
+/* ---------- sign in ---------- */
+function renderSignIn() {
+  document.getElementById("topbar").classList.add("hidden");
+  var root = document.getElementById("app");
+  root.textContent = "";
+  var box = el("div", {class: "signin-box"});
+  box.appendChild(el("h2", {}, "Sign in"));
+  box.appendChild(el("div", {class: "muted"}, "Enter the 6-digit code shown on your computer. On the computer, open Autopilot and tap Add a phone, or run: autopilot open"));
+  var input = el("input", {type: "text", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "6", class: "code-input", placeholder: "123456"});
+  box.appendChild(input);
+  var errBox = el("div", {class: "error-text hidden"});
+  var btn = el("button", {class: "btn btn-primary btn-block"}, "Sign in");
+  btn.addEventListener("click", async function () {
+    var code = input.value.trim();
+    if (!/^\d{6}$/.test(code)) {
+      errBox.textContent = "Enter the 6-digit code.";
+      errBox.classList.remove("hidden");
+      return;
+    }
+    btn.disabled = true;
+    errBox.classList.add("hidden");
+    try {
+      var res = await fetch("/api/pair", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "X-Autopilot": "1"},
+        credentials: "same-origin",
+        body: JSON.stringify({code: code})
+      });
+      var data = null;
+      try { data = await res.json(); } catch (e) {}
+      if (!res.ok) {
+        errBox.textContent = (data && data.error) || "That code did not work.";
+        errBox.classList.remove("hidden");
+        return;
+      }
+      signedOut = false;
+      await refreshState();
+      render();
+    } catch (e) {
+      errBox.textContent = "Can't reach the computer. Is it on and awake?";
+      errBox.classList.remove("hidden");
+    } finally { btn.disabled = false; }
+  });
+  box.appendChild(btn);
+  box.appendChild(errBox);
+  root.appendChild(box);
+  input.focus();
+}
+
+/* ---------- job status pill + sorting ---------- */
+function statusPill(job) {
+  var cls, label, pulse = false;
+  if (job.building) { cls = "building"; label = "Building"; }
+  else {
+    cls = job.status || "idle";
+    label = cls === "ok" ? "OK" : cls.charAt(0).toUpperCase() + cls.slice(1);
+    pulse = cls === "running";
+  }
+  var p = el("span", {class: "pill pill-" + cls});
+  if (pulse) p.appendChild(el("span", {class: "dot pulse"}));
+  p.appendChild(document.createTextNode(label));
+  return p;
+}
+function jobRank(job) {
+  if (job.status === "failed" || job.status === "broken") return 0;
+  if (job.building || job.status === "running") return 1;
+  return 2;
+}
+function sortJobs(a, b) {
+  var ra = jobRank(a), rb = jobRank(b);
+  return ra !== rb ? ra - rb : a.name.localeCompare(b.name);
+}
+
+/* ---------- shared job actions ---------- */
+async function jobAction(name, action, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    await api("/api/action", {method: "POST", body: JSON.stringify({name: name, action: action})});
+    await refreshState();
+  } catch (err) {
+    if (err.message !== "unauthorized") toast(err.message, true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+function actionButton(label, name, action, cls) {
+  var btn = el("button", {class: cls || "btn"}, label);
+  btn.addEventListener("click", function () { jobAction(name, action, btn); });
+  return btn;
+}
+function primaryActionButton(job) {
+  return job.kind === "service" ? actionButton("Restart", job.name, "restart") : actionButton("Run now", job.name, "run");
+}
+function pauseResumeButton(job) {
+  return actionButton(job.paused ? "Resume" : "Pause", job.name, job.paused ? "resume" : "pause");
+}
+function openLinkButton(job) {
+  return job.url ? el("a", {href: job.url, target: "_blank", rel: "noopener", class: "btn btn-ghost"}, "Open") : null;
+}
+
+/* ---------- home ---------- */
+function renderHome(root) {
+  var bar = el("div", {class: "device-bar"});
+  bar.appendChild(el("div", {class: "device-name"}, state.device.name));
+  var pauseBtn = el("button", {class: "btn"}, state.device.paused_all ? "Resume all" : "Pause all");
+  pauseBtn.addEventListener("click", async function () {
+    pauseBtn.disabled = true;
+    try {
+      await api("/api/pause_all", {method: "POST", body: JSON.stringify({paused: !state.device.paused_all})});
+      await refreshState();
+    } catch (err) { if (err.message !== "unauthorized") toast(err.message, true); }
+    finally { pauseBtn.disabled = false; }
+  });
+  bar.appendChild(pauseBtn);
+  root.appendChild(bar);
+
+  var newBtn = el("button", {class: "btn btn-primary btn-block"}, "+ New autopilot");
+  newBtn.addEventListener("click", function () { location.hash = "#/new"; });
+  root.appendChild(newBtn);
+
+  (state.device.problems || []).forEach(function (p) {
+    root.appendChild(el("div", {class: "card problem-card"}, p));
+  });
+
+  if (!state.jobs.length) {
+    root.appendChild(el("div", {class: "muted center"}, "No autopilots yet. Tap New autopilot to build one."));
+  } else {
+    state.jobs.slice().sort(sortJobs).forEach(function (job) { root.appendChild(renderJobCard(job)); });
+  }
+}
+
+function renderJobCard(job) {
+  var card = el("div", {class: "card"});
+  var head = el("button", {class: "job-head"}, el("span", {class: "job-name"}, job.name), statusPill(job));
+  head.addEventListener("click", function () { location.hash = "#/job/" + encodeURIComponent(job.name); });
+  card.appendChild(head);
+  card.appendChild(el("div", {class: "job-meta"}, fmtTrigger(job.trigger)));
+  if (job.next && !job.paused) card.appendChild(timeLine("Next run: ", job.next));
+  if (job.error) card.appendChild(el("div", {class: "error-text"}, job.error));
+  if (job.last) {
+    var line = el("div", {class: "job-meta"}, job.last.status + " ", timeSpan(job.last.ended || job.last.started));
+    card.appendChild(line);
+    if (job.last.summary) card.appendChild(el("div", {class: "job-summary"}, truncate(job.last.summary, 90)));
+  }
+  card.appendChild(homeJobActions(job));
+  return card;
+}
+function homeJobActions(job) {
+  var row = el("div", {class: "action-row"});
+  row.appendChild(primaryActionButton(job));
+  row.appendChild(pauseResumeButton(job));
+  var link = openLinkButton(job);
+  if (link) row.appendChild(link);
+  return row;
+}
+
+/* ---------- job page ---------- */
+function renderJobPage(root, name) {
+  var job = state.jobs.find(function (j) { return j.name === name; });
+  if (!job) {
+    root.appendChild(el("div", {class: "card"}, "This autopilot was not found."));
+    return;
+  }
+  root.appendChild(renderJobTop(job));
+  var detail = el("div", {id: "job-detail"});
+  root.appendChild(detail);
+  logName = name; followingLatestLog = true; logBoxEl = null; logRunSelectEl = null; detailKey = runKey(job);
+  loadJobDetail(name, detail);
+}
+function runKey(job) { return job.last ? job.last.id + job.last.status : ""; }
+// never swap the page under someone typing, reading a file or looking at an older run
+function detailBusy() {
+  var d = document.getElementById("job-detail");
+  return !d || !followingLatestLog || !!d.querySelector(".file-editor:not(.hidden)") ||
+    [].some.call(d.querySelectorAll("textarea"), function (t) { return t.value !== t.defaultValue; });
+}
+function refreshJobTop() {
+  var r = parseRoute();
+  if (r.page !== "job") return;
+  var job = state.jobs.find(function (j) { return j.name === r.name; });
+  var old = document.getElementById("job-top");
+  if (!old) return;
+  if (job) old.replaceWith(renderJobTop(job));
+  else old.replaceWith(el("div", {class: "card", id: "job-top"}, "This autopilot was not found. It may have been deleted."));
+  if (job && runKey(job) !== detailKey && !detailBusy()) {
+    detailKey = runKey(job);
+    loadJobDetail(job.name, document.getElementById("job-detail"), true);
+  }
+}
+function renderJobTop(job) {
+  var box = el("div", {class: "card", id: "job-top"});
+  box.appendChild(statusPill(job));
+  box.appendChild(el("div", {class: "job-meta"}, fmtTrigger(job.trigger)));
+  if (job.next && !job.paused) box.appendChild(timeLine("Next run: ", job.next));
+  if (job.running_since) box.appendChild(timeLine("Running since: ", job.running_since));
+  if (job.last) {
+    box.appendChild(el("div", {class: "job-meta"}, "Last run: " + job.last.status + " ", timeSpan(job.last.ended || job.last.started)));
+    if (job.last.summary) box.appendChild(el("div", {class: "job-summary"}, job.last.summary));
+  }
+  if (job.error) box.appendChild(el("div", {class: "error-text"}, job.error));
+  var row = el("div", {class: "action-row"});
+  row.appendChild(primaryActionButton(job));
+  if (job.status === "running") row.appendChild(actionButton("Stop", job.name, "stop"));
+  row.appendChild(pauseResumeButton(job));
+  var link = openLinkButton(job);
+  if (link) row.appendChild(link);
+  var delBtn = el("button", {class: "btn btn-danger"}, "Delete");
+  delBtn.addEventListener("click", function () { showDeleteConfirm(job.name, row, delBtn); });
+  row.appendChild(delBtn);
+  box.appendChild(row);
+  return box;
+}
+function showDeleteConfirm(name, row, delBtn) {
+  delBtn.classList.add("hidden");
+  var box = el("div", {class: "delete-confirm"});
+  box.appendChild(el("span", {class: "muted"}, "Type the name to delete:"));
+  var input = el("input", {type: "text", class: "delete-input", autocomplete: "off"});
+  var confirmBtn = el("button", {class: "btn btn-danger"}, "Delete for good");
+  confirmBtn.disabled = true;
+  input.addEventListener("input", function () { confirmBtn.disabled = input.value !== name; });
+  confirmBtn.addEventListener("click", async function () {
+    confirmBtn.disabled = true;
+    try {
+      await api("/api/action", {method: "POST", body: JSON.stringify({name: name, action: "delete"})});
+      toast("Deleted " + name);
+      location.hash = "#/";
+      await refreshState();
+    } catch (err) {
+      if (err.message !== "unauthorized") toast(err.message, true);
+      confirmBtn.disabled = false;
+    }
+  });
+  var cancelBtn = el("button", {class: "btn btn-ghost"}, "Cancel");
+  cancelBtn.addEventListener("click", function () { box.remove(); delBtn.classList.remove("hidden"); });
+  box.appendChild(input);
+  box.appendChild(confirmBtn);
+  box.appendChild(cancelBtn);
+  row.appendChild(box);
+}
+
+async function loadJobDetail(name, container, quiet) {
+  if (!quiet) {
+    container.textContent = "";
+    container.appendChild(el("div", {class: "muted"}, "Loading…"));
+  }
+  try {
+    var data = await api("/api/job?name=" + encodeURIComponent(name));
+    container.textContent = "";
+    container.appendChild(renderJobSections(name, data));
+    loadLog();
+  } catch (err) {
+    if (err.message !== "unauthorized") {
+      container.textContent = "";
+      container.appendChild(el("div", {class: "card"}, "Could not load: " + err.message));
+    }
+  }
+}
+function renderJobSections(name, data) {
+  var wrap = document.createDocumentFragment();
+
+  var logSec = el("div", {class: "section"});
+  logSec.appendChild(el("h3", {}, "Latest log"));
+  var runSelect = el("select", {class: "run-select"});
+  (data.runs || []).forEach(function (run) {
+    runSelect.appendChild(el("option", {value: run.id}, run.status + " - " + fmtExact(run.started)));
+  });
+  runSelect.addEventListener("change", function () { followingLatestLog = false; loadLog(runSelect.value); });
+  logSec.appendChild(runSelect);
+  var logBox = el("pre", {class: "logbox"}, "");
+  logSec.appendChild(logBox);
+  logBoxEl = logBox; logRunSelectEl = runSelect;
+  wrap.appendChild(logSec);
+
+  wrap.appendChild(renderBuildSection(name));
+  wrap.appendChild(renderFilesSection(name, data.files));
+  wrap.appendChild(renderSettingsFileSection(name, data.text));
+  return wrap;
+}
+async function loadLog(runId) {
+  if (!logBoxEl || !logName) return;
+  var url = "/api/log?name=" + encodeURIComponent(logName);
+  var useRun = runId !== undefined ? runId : (!followingLatestLog && logRunSelectEl ? logRunSelectEl.value : null);
+  if (useRun) url += "&run=" + encodeURIComponent(useRun);
+  try {
+    var text = await api(url);
+    if (logBoxEl) {
+      logBoxEl.textContent = typeof text === "string" ? text : "";
+      logBoxEl.scrollTop = logBoxEl.scrollHeight;
+    }
+  } catch (err) {
+    if (err.message !== "unauthorized" && logBoxEl) logBoxEl.textContent = "Could not load log: " + err.message;
+  }
+}
+
+function renderBuildSection(name) {
+  var sec = el("div", {class: "section"});
+  sec.appendChild(el("h3", {}, "Change it with AI"));
+  var ta = el("textarea", {class: "build-textarea", rows: "3", placeholder: "Tell it what to change"});
+  sec.appendChild(ta);
+  var btn = el("button", {class: "btn btn-primary"}, "Send");
+  btn.addEventListener("click", async function () {
+    var instruction = ta.value.trim();
+    if (!instruction) return;
+    btn.disabled = true;
+    try {
+      await api("/api/build", {method: "POST", body: JSON.stringify({name: name, instruction: instruction})});
+      ta.value = "";
+      toast("Working on it…");
+      followingLatestLog = true;
+      await refreshState();
+      loadLog();
+    } catch (err) { if (err.message !== "unauthorized") toast(err.message, true); }
+    finally { btn.disabled = false; }
+  });
+  sec.appendChild(btn);
+  return sec;
+}
+
+function renderFilesSection(name, files) {
+  var sec = el("div", {class: "section"});
+  sec.appendChild(el("h3", {}, "Files"));
+  if (!files || !files.length) {
+    sec.appendChild(el("div", {class: "muted"}, "No files yet."));
+    return sec;
+  }
+  var editorBox = el("div", {class: "file-editor hidden"});
+  files.forEach(function (f) {
+    var row = el("button", {class: "file-row"}, el("span", {class: "file-path"}, f.path), el("span", {class: "file-size"}, formatSize(f.size)));
+    row.addEventListener("click", function () { openFile(name, f, editorBox); });
+    sec.appendChild(row);
+  });
+  sec.appendChild(editorBox);
+  return sec;
+}
+async function openFile(name, f, editorBox) {
+  editorBox.textContent = "";
+  editorBox.classList.remove("hidden");
+  editorBox.appendChild(el("div", {class: "muted"}, "Loading " + f.path + "…"));
+  try {
+    var text = await api("/api/file?name=" + encodeURIComponent(name) + "&where=" + encodeURIComponent(f.where) + "&path=" + encodeURIComponent(f.path));
+    editorBox.textContent = "";
+    editorBox.appendChild(el("div", {class: "file-editor-title"}, f.path));
+    var editable = /\.(md|txt|csv|json|toml)$/i.test(f.path);
+    var ta = el("textarea", {class: "file-textarea", rows: "12"});
+    ta.value = typeof text === "string" ? text : "";
+    ta.readOnly = !editable;
+    editorBox.appendChild(ta);
+    var row = el("div", {class: "row-buttons"});
+    if (editable) {
+      var saveBtn = el("button", {class: "btn btn-primary"}, "Save");
+      var note = el("span", {class: "saved-note hidden"}, "Saved");
+      saveBtn.addEventListener("click", async function () {
+        saveBtn.disabled = true;
+        try {
+          await api("/api/file", {method: "POST", body: JSON.stringify({name: name, where: f.where, path: f.path, text: ta.value})});
+          note.classList.remove("hidden");
+          setTimeout(function () { note.classList.add("hidden"); }, 2000);
+        } catch (err) { if (err.message !== "unauthorized") toast(err.message, true); }
+        finally { saveBtn.disabled = false; }
+      });
+      row.appendChild(saveBtn);
+      row.appendChild(note);
+    } else {
+      row.appendChild(el("span", {class: "muted"}, "This file type can only be viewed here."));
+    }
+    var closeBtn = el("button", {class: "btn btn-ghost"}, "Close");
+    closeBtn.addEventListener("click", function () { editorBox.classList.add("hidden"); editorBox.textContent = ""; });
+    row.appendChild(closeBtn);
+    editorBox.appendChild(row);
+  } catch (err) {
+    editorBox.textContent = "";
+    if (err.message !== "unauthorized") editorBox.appendChild(el("div", {class: "card"}, "Could not open file: " + err.message));
+  }
+}
+
+function renderSettingsFileSection(name, text) {
+  var sec = el("div", {class: "section"});
+  sec.appendChild(el("h3", {}, "Settings file"));
+  var ta = el("textarea", {class: "settings-textarea", rows: "14"});
+  ta.defaultValue = typeof text === "string" ? text : "";
+  sec.appendChild(ta);
+  var row = el("div", {class: "row-buttons"});
+  var saveBtn = el("button", {class: "btn btn-primary"}, "Save");
+  var note = el("span", {class: "saved-note hidden"}, "Saved");
+  var errBox = el("div", {class: "error-text hidden"});
+  saveBtn.addEventListener("click", async function () {
+    saveBtn.disabled = true;
+    errBox.classList.add("hidden");
+    try {
+      await api("/api/save", {method: "POST", body: JSON.stringify({name: name, text: ta.value})});
+      ta.defaultValue = ta.value;
+      note.classList.remove("hidden");
+      setTimeout(function () { note.classList.add("hidden"); }, 2000);
+      await refreshState();
+    } catch (err) {
+      if (err.message !== "unauthorized") { errBox.textContent = err.message; errBox.classList.remove("hidden"); }
+    } finally { saveBtn.disabled = false; }
+  });
+  row.appendChild(saveBtn);
+  row.appendChild(note);
+  sec.appendChild(row);
+  sec.appendChild(errBox);
+  return sec;
+}
+
+/* ---------- new autopilot ---------- */
+function renderNewPage(root) {
+  root.appendChild(el("div", {class: "muted"}, "The AI on this computer writes the autopilot, tests it, and switches it on. You can watch it below."));
+  var ta = el("textarea", {class: "new-textarea", rows: "5", placeholder: "What should it do?"});
+  root.appendChild(ta);
+  var chipsRow = el("div", {class: "chips"});
+  EXAMPLES.forEach(function (ex) {
+    var chip = el("button", {class: "chip"}, ex.label);
+    chip.addEventListener("click", function () { ta.value = ex.text; ta.focus(); });
+    chipsRow.appendChild(chip);
+  });
+  root.appendChild(chipsRow);
+
+  var nameRow = el("div", {class: "field"});
+  nameRow.appendChild(el("label", {}, "Name (optional)"));
+  var nameInput = el("input", {type: "text", class: "name-input", placeholder: "e.g. fellowship-finder"});
+  nameRow.appendChild(nameInput);
+  root.appendChild(nameRow);
+
+  var btn = el("button", {class: "btn btn-primary btn-block"}, "Build it");
+  btn.addEventListener("click", async function () {
+    var instruction = ta.value.trim();
+    if (!instruction) { toast("Say what it should do first", true); return; }
+    var nm = nameInput.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50);
+    btn.disabled = true;
+    try {
+      var body = {instruction: instruction};
+      if (nm) body.new_name = nm;
+      var data = await api("/api/build", {method: "POST", body: JSON.stringify(body)});
+      await refreshState();
+      location.hash = "#/job/" + encodeURIComponent(data.name);
+    } catch (err) { if (err.message !== "unauthorized") toast(err.message, true); }
+    finally { btn.disabled = false; }
+  });
+  root.appendChild(btn);
+}
+
+/* ---------- settings ---------- */
+function renderSettingsPage(root) {
+  root.appendChild(renderEnginesSection());
+  root.appendChild(renderPhoneSection());
+  root.appendChild(renderAlertsSection());
+  root.appendChild(renderHomeScreenHint());
+}
+function renderEnginesSection() {
+  var sec = el("div", {class: "section"});
+  sec.appendChild(el("h3", {}, "AI tools, in backup order"));
+  var found = state.engines.filter(function (e) { return e.found; }).map(function (e) { return e.name; });
+  var notFound = state.engines.filter(function (e) { return !e.found; }).map(function (e) { return e.name; });
+  var order = found.slice();
+  var list = el("div", {});
+  function draw() {
+    list.textContent = "";
+    order.forEach(function (name, i) {
+      var row = el("div", {class: "engine-row"});
+      row.appendChild(el("span", {class: "engine-name"}, name));
+      row.appendChild(el("span", {class: "engine-tag found"}, "found"));
+      var upBtn = el("button", {class: "iconbtn", "aria-label": "Move up"}, "▲");
+      upBtn.disabled = i === 0;
+      upBtn.addEventListener("click", function () { var t = order[i - 1]; order[i - 1] = order[i]; order[i] = t; draw(); });
+      var downBtn = el("button", {class: "iconbtn", "aria-label": "Move down"}, "▼");
+      downBtn.disabled = i === order.length - 1;
+      downBtn.addEventListener("click", function () { var t = order[i + 1]; order[i + 1] = order[i]; order[i] = t; draw(); });
+      row.appendChild(upBtn);
+      row.appendChild(downBtn);
+      list.appendChild(row);
+    });
+    notFound.forEach(function (name) {
+      var row = el("div", {class: "engine-row dim"});
+      row.appendChild(el("span", {class: "engine-name"}, name));
+      row.appendChild(el("span", {class: "engine-tag"}, "not found"));
+      list.appendChild(row);
+    });
+  }
+  draw();
+  sec.appendChild(list);
+  var saveBtn = el("button", {class: "btn btn-primary"}, "Save order");
+  saveBtn.addEventListener("click", async function () {
+    saveBtn.disabled = true;
+    try {
+      await api("/api/engines", {method: "POST", body: JSON.stringify({order: order})});
+      toast("Saved");
+      await refreshState();
+    } catch (err) { if (err.message !== "unauthorized") toast(err.message, true); }
+    finally { saveBtn.disabled = false; }
+  });
+  sec.appendChild(saveBtn);
+  return sec;
+}
+function renderPhoneSection() {
+  var sec = el("div", {class: "section"});
+  sec.appendChild(el("h3", {}, "Phone"));
+  var resultBox = el("div", {});
+  var btn = el("button", {class: "btn btn-primary"}, "Add a phone");
+  btn.addEventListener("click", async function () {
+    btn.disabled = true;
+    try {
+      var data = await api("/api/pair/new", {method: "POST", body: JSON.stringify({})});
+      resultBox.textContent = "";
+      if (data.url) {
+        resultBox.appendChild(el("div", {class: "muted"}, "On your phone, open this address, then enter the code:"));
+        resultBox.appendChild(el("span", {class: "phone-url"}, data.url));
+      } else {
+        resultBox.appendChild(el("div", {class: "muted"}, "Phone access is off. On the computer run: autopilot phone"));
+      }
+      resultBox.appendChild(el("div", {class: "phone-code"}, data.code));
+      var countdownEl = el("div", {class: "muted center"});
+      resultBox.appendChild(countdownEl);
+      var timer = setInterval(function () {
+        var secs = Math.max(0, Math.round(data.expires - Date.now() / 1000));
+        if (secs <= 0) { countdownEl.textContent = "Expired"; clearInterval(timer); return; }
+        var m = Math.floor(secs / 60), s = secs % 60;
+        countdownEl.textContent = "Expires in " + m + ":" + (s < 10 ? "0" : "") + s;
+      }, 1000);
+      extraTimers.push(timer);
+    } catch (err) { if (err.message !== "unauthorized") toast(err.message, true); }
+    finally { btn.disabled = false; }
+  });
+  sec.appendChild(btn);
+  sec.appendChild(resultBox);
+  return sec;
+}
+function renderAlertsSection() {
+  var sec = el("div", {class: "section"});
+  sec.appendChild(el("h3", {}, "Alerts"));
+  if (state.alerts && state.alerts.subscribe_url) {
+    sec.appendChild(el("div", {class: "muted"}, "Install the free ntfy app and subscribe to this link:"));
+    sec.appendChild(el("a", {href: state.alerts.subscribe_url, target: "_blank", rel: "noopener", class: "phone-url"}, state.alerts.subscribe_url));
+  } else {
+    sec.appendChild(el("div", {class: "muted"}, "Alerts are off. Run autopilot setup to turn them on."));
+  }
+  return sec;
+}
+function renderHomeScreenHint() {
+  var sec = el("div", {class: "section"});
+  sec.appendChild(el("h3", {}, "Add to home screen"));
+  sec.appendChild(el("div", {class: "muted"}, "iPhone: tap Share, then Add to Home Screen."));
+  sec.appendChild(el("div", {class: "muted"}, "Android: open the menu, then Add to Home screen."));
+  return sec;
+}
+
+/* ---------- polling ---------- */
+function tick5() {
+  if (signedOut) return;
+  var r = parseRoute();
+  if (r.page === "home" || r.page === "job") refreshState();
+}
+function tick3() {
+  if (signedOut) return;
+  var r = parseRoute();
+  if (r.page !== "job" || !state) return;
+  var job = state.jobs.find(function (j) { return j.name === r.name; });
+  if (job && (job.status === "running" || job.building) && followingLatestLog) loadLog();
+}
+
+/* ---------- boot ---------- */
+document.getElementById("back-btn").addEventListener("click", function () { history.back(); });
+document.getElementById("gear-btn").addEventListener("click", function () { location.hash = "#/settings"; });
+window.addEventListener("hashchange", function () {
+  extraTimers.forEach(clearInterval);
+  extraTimers = [];
+  followingLatestLog = true;
+  render();
+});
+window.addEventListener("focus", function () { if (!signedOut) refreshState(); });
+document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible" && !signedOut) refreshState(); });
+setInterval(tick5, 5000);
+setInterval(tick3, 3000);
+
+(async function boot() {
+  render();
+  try { state = await api("/api/state"); } catch (e) {}
+  render();
+})();
+</script>
+</body>
+</html>
