@@ -18,9 +18,10 @@ if ($env:AUTOPILOT_REF) {
     $Ref = $env:AUTOPILOT_REF
 } else {
     Write-Host "Looking up the latest release..."
-    try {
-        $Release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest"
-        $Ref = $Release.tag_name
+    try {  # the release page redirect, not the api, which allows only 60 calls an hour per address
+        $Resp = [System.Net.WebRequest]::Create("https://github.com/$Repo/releases/latest").GetResponse()
+        $Ref = ($Resp.ResponseUri.AbsolutePath -split '/releases/tag/')[1]
+        $Resp.Close()
     } catch {
         Write-Host "Could not reach GitHub to find the latest release. Check your internet connection and try again."
         exit 1

@@ -252,11 +252,13 @@ def doctor(a):
 
 
 def update(a):
-    try:
-        with urllib.request.urlopen(f"https://api.github.com/repos/{spec.REPO}/releases/latest", timeout=30) as r:
-            tag = json.load(r)["tag_name"]
-    except (OSError, ValueError, KeyError) as e:
+    try:  # the api allows 60 calls an hour per address, which a shared connection runs out of; this redirect has no limit
+        with urllib.request.urlopen(urllib.request.Request(f"https://github.com/{spec.REPO}/releases/latest", method="HEAD"), timeout=30) as r:
+            tag = r.url.partition("/releases/tag/")[2]
+    except OSError as e:
         sys.exit(f"Could not check for updates: {e}")
+    if not tag:
+        sys.exit("Could not check for updates: there is no release yet.")
     if tag.lstrip("v") == __version__:
         print(f"You have the newest version ({__version__}).")
         return

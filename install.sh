@@ -13,7 +13,7 @@ if [ -n "${PREFIX:-}" ] && [ "$PREFIX" != "${PREFIX#*com.termux}" ]; then
 
     if [ -z "${AUTOPILOT_REF:-}" ]; then
         echo "Looking up the latest release..."
-        TAG=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n1)
+        TAG=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" 2>/dev/null | sed -n 's|.*/releases/tag/||p')
         if [ -z "$TAG" ]; then
             echo "Could not reach GitHub to find the latest release. Check your internet connection and try again." >&2
             exit 1
@@ -47,9 +47,10 @@ else
     UV="uv"
 fi
 
+# the release page redirect, not the api, which allows only 60 calls an hour per address
 if [ -z "${AUTOPILOT_REF:-}" ]; then
     echo "Looking up the latest release..."
-    TAG=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n1)
+    TAG=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" 2>/dev/null | sed -n 's|.*/releases/tag/||p')
     if [ -z "$TAG" ]; then
         echo "Could not reach GitHub to find the latest release. Check your internet connection and try again." >&2
         exit 1
