@@ -89,11 +89,6 @@ def setup(a):
     spec.secret()
     if cfg.get("ntfy_topic") and not a.yes:
         print(f"For alerts, install the free ntfy app on your phone and subscribe to:\n  https://ntfy.sh/{cfg['ntfy_topic']}\n")
-    ex = spec.HOME / "fellowship-hunter"
-    if not a.yes and not ex.exists() and input("Add the ready-made PhD fellowship finder? [y/N] ").strip().lower() in ("y", "yes"):
-        shutil.copytree(Path(__file__).parent / "examples" / "fellowship-hunter", ex)
-        print(f"Added. Fill in your details in {ex / 'profile.md'}, or open it from the dashboard.\n")
-
     print("Starting the background program...")
     try:
         service.install()

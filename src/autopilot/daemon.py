@@ -1,6 +1,8 @@
 """The background program: starts runs on time, keeps services up, serves the dashboard."""
+import base64
 import json
 import os
+import re
 import platform
 import shutil
 import sys
@@ -8,11 +10,18 @@ import threading
 import time
 import traceback
 from dataclasses import dataclass
+from pathlib import Path
 
 from . import engines, proc, runner, spec, web
 
 TICK = 5
+ATTACH_MAX = 25 << 20
 STATE = spec.RUN / "state.json"
+DASHBOARD = ("The owner wants their own web page for it, to see what it did and control it. Serve a small, clean page from "
+             "127.0.0.1 on a free port with an always-on program and put its address in url. If this autopilot itself runs on "
+             "a schedule, keep it that way and add a second autopilot in a new folder next to this one, named like {name}-dashboard "
+             "(at most 50 lowercase letters, digits and dashes, and not a folder that exists). Give it keepalive = true and "
+             "run = the command that serves the page, make the page show the files this one writes, and put the same url in both.")
 
 
 def log(text):
@@ -128,7 +137,7 @@ class Daemon:
                              "building": bool(info) and info.get("trigger") == "build",
                              "trigger": job.trigger if job else "by hand", "next": self.next_run(name, job) if job else None,
                              "running_since": (info or {}).get("started"), "last": last, "error": error,
-                             "url": job.url if job else None, "paused": name in self.paused})
+                             "url": job.url if job else None, "about": job.about if job else "", "paused": name in self.paused})
             cfg = spec.config()
             names = engines.order()
             host = cfg.get("remote_host")
@@ -197,11 +206,15 @@ class Daemon:
             for t in stops:
                 t.join()
 
-    def build(self, instruction, name=None, new_name=None):
+    def build(self, instruction, name=None, new_name=None, files=None, dashboard=None):
         if not isinstance(instruction, str) or not instruction.strip():
             raise web.Fail(400, "write what you want it to do")
-        if len(instruction) > 20000:
-            raise web.Fail(400, "that is too long, keep it under 20,000 characters")
+        if len(instruction) > 100000:
+            raise web.Fail(400, "that is too long, keep it under 100,000 characters")
+        if dashboard is not None and not isinstance(dashboard, bool):
+            raise web.Fail(400, "dashboard must be true or false")
+        files = attachments(files)
+        new = not name
         with self.mu:
             if name:
                 folder = self.folder(name)
@@ -218,7 +231,16 @@ class Daemon:
                 folder = spec.HOME / name
                 folder.mkdir()
                 self.jobs[name] = Entry()
-            (folder / ".instruction").write_text(instruction.strip() + "\n", encoding="utf-8")
+            try:
+                saved = save_attachments(folder / "context", files)
+                note = "\n\nThe owner attached these files for reference. Open and look at each one first:\n" + "\n".join(saved) if saved else ""
+                page = "\n\n" + DASHBOARD.format(name=name) if dashboard else ""
+                (folder / ".instruction").write_text(instruction.strip() + page + note + "\n", encoding="utf-8")
+            except OSError as e:
+                if new:  # don't leave a half-made autopilot behind
+                    shutil.rmtree(folder, ignore_errors=True)
+                    self.jobs.pop(name, None)
+                raise web.Fail(500, f"could not save the attached files: {e}") from None
         runner.start(name, "build")
         return name
 
@@ -233,6 +255,38 @@ class Daemon:
         tmp = folder / ".autopilot.tmp"
         tmp.write_text(text, encoding="utf-8")
         os.replace(tmp, folder / "autopilot.md")
+
+
+def attachments(files):
+    """Decode pasted or picked files first, so a bad one fails before anything is written."""
+    if files is None:
+        return []
+    if not isinstance(files, list) or len(files) > 20 or not all(
+            isinstance(f, dict) and isinstance(f.get("name"), str) and isinstance(f.get("data"), str) for f in files):
+        raise web.Fail(400, "attach at most 20 files")
+    out, total = [], 0
+    for f in files:
+        try:
+            data = base64.b64decode(f["data"], validate=True)
+        except ValueError:
+            raise web.Fail(400, f"could not read the file {f['name']!r}") from None
+        total += len(data)
+        if total > ATTACH_MAX:
+            raise web.Fail(413, "the files add up to more than 25 MB")
+        out.append((re.sub(r"[^\w.-]+", "-", Path(f["name"]).name)[-80:].strip(".-") or "file", data))
+    return out
+
+
+def save_attachments(folder, files):
+    saved = []
+    for name, data in files:
+        folder.mkdir(exist_ok=True)
+        path, n = folder / name, 2
+        while path.exists():  # a second pasted image.png must not replace the first
+            path, n = folder / f"{Path(name).stem}-{n}{Path(name).suffix}", n + 1
+        path.write_bytes(data)
+        saved.append(str(path))
+    return saved
 
 
 def watchdog(d):

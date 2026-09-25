@@ -8,104 +8,226 @@
 <link rel="icon" href="/icon.svg">
 <link rel="apple-touch-icon" href="/icon.svg">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" media="(prefers-color-scheme: light)" content="#4f46e5">
-<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1e1b4b">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f6fa">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0d14">
 <style>
 :root{
-  --bg:#f3f4f8; --surface:#ffffff; --text:#161821; --text-dim:#6b7280; --border:#e3e5ea;
-  --accent:#4f46e5; --accent-contrast:#ffffff; --btn-bg:#eef0f4; --btn-text:#161821;
-  --danger:#dc2626; --danger-bg:#fee2e2; --ok:#16a34a; --ok-bg:#dcfce7;
-  --warn:#d97706; --warn-bg:#fef3c7; --info:#2563eb; --info-bg:#dbeafe;
-  --gray:#6b7280; --gray-bg:#e5e7eb; --purple:#7c3aed; --purple-bg:#ede9fe;
+  color-scheme:light dark;
+  --bg:#f5f6fa; --surface:#ffffff; --surface-2:#f0f2f7; --text:#101322; --dim:#5f687d; --faint:#8a92a6; --border:#e3e6ee;
+  --accent:#4f46e5; --accent-hover:#4338ca; --accent-soft:#eef0ff; --on-accent:#ffffff;
+  --ok:#15803d; --ok-bg:#e6f6ec; --bad:#dc2626; --bad-bg:#fdecec; --warn:#b45309; --warn-bg:#fdf3e1;
+  --info:#2563eb; --info-bg:#e8f0fe; --gray:#667085; --gray-bg:#eceef3; --purple:#7c3aed; --purple-bg:#f1ecfe;
+  --shadow:0 1px 2px rgba(16,19,34,.04),0 4px 14px rgba(16,19,34,.05);
+  --shadow-hover:0 2px 4px rgba(16,19,34,.06),0 12px 30px rgba(16,19,34,.1);
+  --log-bg:#0f1220; --log-text:#d8dcea;
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#111318; --surface:#1b1e26; --text:#e7e9ee; --text-dim:#9aa1ad; --border:#2a2e38;
-    --accent:#818cf8; --accent-contrast:#0b0b12; --btn-bg:#242833; --btn-text:#e7e9ee;
-    --danger:#f87171; --danger-bg:#3f1d1d; --ok:#4ade80; --ok-bg:#14351f;
-    --warn:#fbbf24; --warn-bg:#3a2a0d; --info:#60a5fa; --info-bg:#122a4a;
-    --gray:#9aa1ad; --gray-bg:#262a33; --purple:#c4b5fd; --purple-bg:#2c2350;
+    --bg:#0b0d14; --surface:#141722; --surface-2:#1b1f2c; --text:#e9ebf3; --dim:#a0a7b8; --faint:#737b90; --border:#252a38;
+    --accent:#8b8ffc; --accent-hover:#a3a6ff; --accent-soft:#1e2143; --on-accent:#0b0d14;
+    --ok:#4ade80; --ok-bg:#12291b; --bad:#f87171; --bad-bg:#341618; --warn:#fbbf24; --warn-bg:#33260c;
+    --info:#60a5fa; --info-bg:#132640; --gray:#9aa1b3; --gray-bg:#212533; --purple:#c4b5fd; --purple-bg:#271f45;
+    --shadow:0 1px 2px rgba(0,0,0,.35); --shadow-hover:0 8px 28px rgba(0,0,0,.45);
+    --log-bg:#080a10;
   }
 }
 *{box-sizing:border-box;}
-html,body{margin:0;padding:0;width:100%;overflow-x:hidden;}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
-#topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:4px;padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--border);}
-#topbar-title{flex:1;font-weight:600;font-size:17px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.iconbtn{width:44px;height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;background:none;border:none;font-size:20px;color:var(--text);border-radius:8px;cursor:pointer;}
-.iconbtn:active{background:var(--btn-bg);}
-.offline-banner{background:var(--warn-bg);color:var(--warn);padding:10px 16px;text-align:center;font-size:14px;}
-#app{max-width:900px;margin:0 auto;padding:16px;padding-bottom:70px;}
+html,body{margin:0;padding:0;overflow-x:hidden;}
+body{background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;}
+button,input,select,textarea{font:inherit;color:inherit;}
+h1,h2,h3,p{margin:0;}
+h1,h2{letter-spacing:-.015em;}
+a{color:var(--accent);}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 .hidden{display:none !important;}
-.toast{position:fixed;left:16px;right:16px;bottom:16px;max-width:868px;margin:0 auto;background:var(--surface);color:var(--text);border:1px solid var(--border);padding:12px 16px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.2);text-align:center;font-size:14px;z-index:50;}
-.toast-error{border-color:var(--danger);color:var(--danger);}
-.btn{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--border);background:var(--btn-bg);color:var(--btn-text);font-size:15px;font-weight:500;cursor:pointer;}
+.invisible{visibility:hidden;}
+
+#topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:6px;padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top));background:var(--bg);background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px);border-bottom:1px solid var(--border);}
+.brand{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:9px;color:var(--text);text-decoration:none;font-weight:650;font-size:16px;}
+.brand img{width:26px;height:26px;border-radius:7px;flex:none;}
+.brand span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.iconbtn{width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;background:none;border:none;border-radius:10px;color:var(--dim);cursor:pointer;}
+.iconbtn:hover{background:var(--surface-2);color:var(--text);}
+.iconbtn:disabled{opacity:.3;cursor:default;background:none;}
+.offline-banner{background:var(--warn-bg);color:var(--warn);padding:10px 16px;text-align:center;font-size:14px;font-weight:550;}
+#app{max-width:1080px;margin:0 auto;padding:28px 20px 90px;}
+.narrow{max-width:760px;margin:0 auto;}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:max-content;max-width:calc(100% - 32px);background:var(--text);color:var(--bg);padding:11px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);font-size:14px;font-weight:550;z-index:50;}
+.toast-error{background:var(--bad);color:#fff;}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:0 16px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14.5px;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .15s,border-color .15s,color .15s;}
+.btn:hover{background:var(--surface-2);}
 .btn:disabled{opacity:.5;cursor:not-allowed;}
-.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast);}
-.btn-danger{background:var(--danger-bg);border-color:var(--danger);color:var(--danger);}
-.btn-ghost{background:transparent;text-decoration:none;display:inline-flex;align-items:center;}
-.btn-block{width:100%;margin:10px 0;}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;}
-.problem-card{background:var(--warn-bg);color:var(--warn);border-color:var(--warn);font-size:14px;}
-.device-bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
-.device-name{flex:1;font-size:19px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.job-head{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;padding:0 0 8px 0;font-size:16px;font-weight:600;color:var(--text);text-align:left;cursor:pointer;font-family:inherit;}
-.job-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px;}
-.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;flex:none;}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
+.btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover);}
+.btn-danger{color:var(--bad);}
+.btn-danger:hover{background:var(--bad-bg);border-color:var(--bad);}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--dim);}
+.btn-ghost:hover{background:var(--surface-2);color:var(--text);}
+.btn-sm{min-height:34px;padding:0 12px;font-size:13.5px;border-radius:9px;}
+.btn-lg{min-height:52px;font-size:16px;border-radius:13px;}
+.btn-block{width:100%;}
+.action-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.spacer{flex:1;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:var(--shadow);}
+.section{margin-top:16px;}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.section h2{font-size:16px;font-weight:650;}
+.section-sub{color:var(--dim);font-size:14px;margin:-6px 0 14px;}
+.muted{color:var(--dim);font-size:14px;}
+.error-text{color:var(--bad);font-size:13.5px;margin-top:8px;}
+.saved-note{color:var(--ok);font-size:13.5px;font-weight:600;}
+.notice{background:var(--warn-bg);color:var(--warn);border:1px solid transparent;border-radius:14px;padding:12px 16px;font-size:14px;font-weight:550;margin-bottom:12px;}
+
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 8px;border-radius:999px;font-size:12px;font-weight:650;white-space:nowrap;flex:none;background:var(--gray-bg);color:var(--gray);}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;}
+.pill.live::before{animation:pulse 1.4s ease-in-out infinite;}
 .pill-running{background:var(--info-bg);color:var(--info);}
 .pill-ok{background:var(--ok-bg);color:var(--ok);}
-.pill-failed{background:var(--danger-bg);color:var(--danger);}
-.pill-paused{background:var(--gray-bg);color:var(--gray);}
+.pill-failed{background:var(--bad-bg);color:var(--bad);}
 .pill-broken{background:var(--warn-bg);color:var(--warn);}
-.pill-idle{background:var(--gray-bg);color:var(--gray);}
 .pill-building{background:var(--purple-bg);color:var(--purple);}
-.dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
-.pulse{animation:pulse 1.2s ease-in-out infinite;}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
-.job-meta{font-size:13px;color:var(--text-dim);margin-top:2px;}
-.job-summary{font-size:13px;color:var(--text-dim);margin-top:4px;font-style:italic;}
-.action-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center;}
-.section{margin-top:22px;}
-.section h3{font-size:15px;margin:0 0 8px 0;}
-.logbox{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;white-space:pre-wrap;word-break:break-word;max-height:60vh;overflow:auto;margin-top:8px;}
-.run-select{width:100%;min-height:44px;padding:0 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;}
-textarea,.name-input,.code-input,.delete-input{font-family:inherit;}
-.build-textarea,.new-textarea,.settings-textarea,.file-textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:15px;background:var(--surface);color:var(--text);margin:8px 0;}
-.file-textarea,.settings-textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;}
-.file-row{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:44px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);margin-bottom:6px;font-size:14px;font-family:inherit;cursor:pointer;text-align:left;}
-.file-path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px;}
-.file-size{color:var(--text-dim);flex:none;font-size:12px;}
-.file-editor{margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);}
-.file-editor-title{font-weight:600;margin-bottom:6px;font-size:14px;word-break:break-all;}
-.row-buttons{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;}
-.saved-note{color:var(--ok);font-size:13px;}
-.error-text{color:var(--danger);font-size:13px;margin-top:6px;}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;}
-.chip{min-height:44px;padding:8px 14px;border-radius:14px;border:1px solid var(--border);background:var(--btn-bg);color:var(--text);font-size:13px;cursor:pointer;text-align:left;max-width:100%;}
-.field{margin:14px 0;}
-.field label{display:block;font-size:13px;color:var(--text-dim);margin-bottom:6px;}
-.name-input,.code-input,.delete-input{width:100%;min-height:44px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:16px;}
-.signin-box{max-width:400px;margin:50px auto;padding:20px;text-align:center;}
-.signin-box .code-input{text-align:center;letter-spacing:8px;font-size:24px;margin:16px 0;}
-.engine-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+@media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important;}}
+
+.home-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px;}
+.home-head h1{font-size:28px;font-weight:750;overflow-wrap:anywhere;}
+.stats{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:6px;color:var(--dim);font-size:14px;}
+.stat{display:inline-flex;align-items:center;gap:7px;}
+.stat::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--gray);}
+.stat-ok::before{background:var(--ok);}
+.stat-live::before{background:var(--info);}
+.stat-bad::before{background:var(--bad);}
+.stat b{color:var(--text);font-weight:650;}
+.home-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.job-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(310px,100%),1fr));gap:14px;}
+.job-card{display:flex;flex-direction:column;gap:8px;padding:18px;cursor:pointer;transition:box-shadow .15s,border-color .15s;}
+.job-card:hover{box-shadow:var(--shadow-hover);border-color:color-mix(in srgb,var(--accent) 35%,var(--border));}
+.job-card.is-bad{border-color:color-mix(in srgb,var(--bad) 45%,var(--border));}
+.job-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.job-name{font-weight:650;font-size:16px;color:var(--text);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.job-about{font-size:14.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;}
+.job-about.empty{color:var(--faint);font-style:italic;}
+.job-meta{font-size:13px;color:var(--dim);}
+.job-last{font-size:13px;color:var(--dim);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;}
+.job-error{font-size:13px;color:var(--bad);background:var(--bad-bg);padding:8px 10px;border-radius:9px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;}
+.job-card .action-row{margin-top:auto;padding-top:6px;}
+.empty-state{text-align:center;padding:52px 20px;}
+.empty-state img{width:60px;height:60px;border-radius:16px;margin-bottom:14px;}
+.empty-state h2{font-size:20px;margin-bottom:6px;}
+.empty-state p{color:var(--dim);margin-bottom:20px;}
+
+.hero-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.hero h1{font-size:25px;font-weight:750;overflow-wrap:anywhere;}
+.hero-about{margin-top:6px;font-size:16px;color:var(--dim);}
+.meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:10px;margin-top:18px;}
+.meta-item{background:var(--surface-2);border-radius:12px;padding:10px 14px;min-width:0;}
+.meta-label{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);font-weight:650;}
+.meta-value{font-size:14.5px;font-weight:600;margin-top:2px;overflow-wrap:anywhere;}
+.summary-box,.error-box{margin-top:12px;padding:12px 14px;border-radius:12px;font-size:14.5px;white-space:pre-wrap;overflow-wrap:anywhere;}
+.summary-box{background:var(--accent-soft);}
+.error-box{background:var(--bad-bg);color:var(--bad);}
+.hero .action-row{margin-top:18px;}
+.delete-confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%;padding:12px;border-radius:12px;background:var(--bad-bg);}
+.delete-confirm .input{flex:1;min-width:150px;}
+
+.logbox{background:var(--log-bg);color:var(--log-text);border-radius:12px;padding:14px 16px;font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;max-height:60vh;min-height:140px;overflow:auto;margin:0;}
+.run-select{min-height:36px;max-width:100%;padding:0 10px;border-radius:9px;border:1px solid var(--border);background:var(--surface);font-size:13.5px;}
+.fold{padding:0;}
+.fold > summary{list-style:none;cursor:pointer;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:650;font-size:16px;}
+.fold > summary::-webkit-details-marker{display:none;}
+.fold > summary::after{content:"";flex:none;width:8px;height:8px;border-right:2px solid var(--faint);border-bottom:2px solid var(--faint);transform:rotate(45deg);transition:transform .15s;margin:0 4px 4px 0;}
+.fold[open] > summary::after{transform:rotate(-135deg);margin:4px 4px 0 0;}
+.fold-body{padding:0 20px 20px;}
+.count{color:var(--faint);font-weight:500;}
+
+.input,.textarea-mono{width:100%;border:1px solid var(--border);border-radius:11px;background:var(--surface);padding:10px 12px;font-size:15px;transition:border-color .15s,box-shadow .15s;}
+.input{min-height:44px;}
+.input:focus,.textarea-mono:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+.textarea-mono{display:block;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;resize:vertical;}
+.file-list{display:flex;flex-direction:column;gap:6px;}
+.file-row{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;min-height:42px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);text-align:left;cursor:pointer;font-size:14px;}
+.file-row:hover{background:var(--surface-2);}
+.file-path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.file-size{color:var(--faint);flex:none;font-size:12.5px;}
+.file-editor{margin-top:12px;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);}
+.file-editor-title{font-weight:650;margin-bottom:8px;font-size:14px;overflow-wrap:anywhere;}
+.row-buttons{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;}
+
+.composer{position:relative;border:1px solid var(--border);border-radius:16px;background:var(--surface);box-shadow:var(--shadow);transition:border-color .15s,box-shadow .15s,background .15s;}
+.composer:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);}
+.composer.drag{border-color:var(--accent);border-style:dashed;background:var(--accent-soft);}
+.composer-input{display:block;width:100%;border:none;outline:none;background:transparent;resize:vertical;padding:16px 18px 8px;font-size:16px;line-height:1.6;min-height:190px;max-height:60vh;field-sizing:content;}
+.composer-sm .composer-input{min-height:110px;}
+.composer-input::placeholder{color:var(--faint);}
+.composer-bar{display:flex;align-items:center;gap:10px;padding:8px 10px 10px 10px;flex-wrap:wrap;}
+.composer-hint{flex:1;min-width:0;color:var(--faint);font-size:13px;}
+.attach-list{display:flex;flex-wrap:wrap;gap:8px;padding:4px 14px 0;}
+.attach-list:empty{display:none;}
+.attach-item{display:flex;align-items:center;gap:9px;max-width:250px;padding:5px 4px 5px 5px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);font-size:13px;}
+.attach-thumb{width:38px;height:38px;border-radius:8px;object-fit:cover;flex:none;}
+.attach-ext{display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:10px;font-weight:750;letter-spacing:.03em;}
+.attach-info{display:flex;flex-direction:column;min-width:0;line-height:1.3;}
+.attach-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:550;}
+.attach-size{color:var(--faint);font-size:12px;}
+.attach-x{flex:none;width:28px;height:28px;border:none;border-radius:8px;background:none;color:var(--faint);cursor:pointer;font-size:18px;line-height:1;}
+.attach-x:hover{background:var(--bad-bg);color:var(--bad);}
+
+.page-title{font-size:30px;font-weight:750;letter-spacing:-.02em;}
+.page-sub{color:var(--dim);margin:6px 0 20px;font-size:15.5px;}
+.field{margin-top:18px;}
+.field label{display:block;font-size:14px;font-weight:600;margin-bottom:6px;}
+.field .optional{font-weight:400;color:var(--faint);}
+.toggle{position:relative;display:flex;align-items:flex-start;gap:14px;margin-top:14px;padding:14px 16px;border:1px solid var(--border);border-radius:14px;background:var(--surface);cursor:pointer;}
+.toggle:hover{border-color:color-mix(in srgb,var(--accent) 35%,var(--border));}
+.toggle input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;}
+.switch{flex:none;position:relative;width:44px;height:26px;margin-top:1px;border-radius:999px;background:var(--gray-bg);border:1px solid var(--border);transition:background .15s,border-color .15s;}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .15s;}
+.toggle input:checked + .switch{background:var(--accent);border-color:var(--accent);}
+.toggle input:checked + .switch::after{transform:translateX(18px);}
+.toggle input:focus-visible + .switch{outline:2px solid var(--accent);outline-offset:2px;}
+.toggle-text{display:flex;flex-direction:column;gap:2px;font-size:15px;font-weight:600;}
+.toggle-text small{color:var(--dim);font-size:13.5px;font-weight:400;}
+.build-btn{margin-top:20px;}
+
+.engine-list{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.engine-row{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);}
 .engine-row.dim{opacity:.55;}
-.engine-name{flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.engine-tag{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--gray-bg);color:var(--gray);flex:none;}
+.engine-num{width:24px;height:24px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:750;display:flex;align-items:center;justify-content:center;flex:none;}
+.engine-name{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.engine-tag{font-size:11.5px;padding:2px 9px;border-radius:999px;background:var(--gray-bg);color:var(--gray);flex:none;font-weight:650;}
 .engine-tag.found{background:var(--ok-bg);color:var(--ok);}
-.phone-code{font-size:32px;font-weight:700;letter-spacing:8px;text-align:center;margin:12px 0;}
-.phone-url{word-break:break-all;color:var(--accent);font-size:14px;display:block;margin:6px 0;}
-.delete-confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%;margin-top:8px;}
-.delete-confirm .delete-input{flex:1;min-width:140px;}
-.muted{color:var(--text-dim);font-size:14px;}
-.center{text-align:center;padding:30px 10px;}
-h2{font-size:19px;margin:0 0 8px 0;}
+.phone-code{font:700 34px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:10px;text-align:center;margin:16px 0 4px;}
+.phone-url{overflow-wrap:anywhere;color:var(--accent);font-size:14px;display:block;margin:6px 0;}
+.center{text-align:center;}
+.signin-box{max-width:420px;margin:10vh auto 0;text-align:center;padding:32px 24px;}
+.signin-box img{width:60px;height:60px;border-radius:16px;}
+.signin-box h1{font-size:23px;margin:14px 0 6px;}
+.code-input{text-align:center;letter-spacing:10px;font-size:26px;margin:20px 0 12px;font-variant-numeric:tabular-nums;}
+
+@media (max-width: 560px){
+  #app{padding:18px 16px 90px;}
+  .home-head{margin-bottom:16px;}
+  .home-head h1{font-size:24px;}
+  .home-actions{width:100%;}
+  .home-actions .btn{flex:1;}
+  .card{padding:16px;}
+  .fold > summary{padding:16px;}
+  .fold-body{padding:0 16px 16px;}
+  .page-title{font-size:24px;}
+  .input,.run-select,.textarea-mono{font-size:16px;}
+  .btn-sm{min-height:40px;}
+  .composer-hint{display:none;}
+  .hero .action-row .btn{flex:1 1 auto;}
+}
 </style>
 </head>
 <body>
 <div id="topbar">
-  <button id="back-btn" class="iconbtn hidden" aria-label="Back">&#8249;</button>
-  <div id="topbar-title">Autopilot</div>
-  <button id="gear-btn" class="iconbtn" aria-label="Settings">&#9881;</button>
+  <button id="back-btn" class="iconbtn invisible" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+  <a class="brand" href="#/"><img src="/icon.svg" alt=""><span id="topbar-title">Autopilot</span></a>
+  <button id="gear-btn" class="iconbtn" aria-label="Settings"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
 </div>
 <div id="offline-banner" class="offline-banner hidden">Can't reach the computer. Is it on and awake?</div>
 <div id="app"></div>
@@ -117,12 +239,8 @@ var state = null;
 var signedOut = false;
 var logName = null, logBoxEl = null, logRunSelectEl = null, followingLatestLog = true, detailKey = null;
 var extraTimers = [];
-
-var EXAMPLES = [
-  {label:"PhD fellowships", text:"Every morning at 8, find new fully funded PhD fellowships in computer science open to Nepali students and add them to fellowships.md, sorted by deadline. Alert me when there is a new one."},
-  {label:"Website uptime check", text:"Every 30 minutes, check if my website https://example.com is up and alert me if it is down."},
-  {label:"Clean Downloads weekly", text:"Every Sunday at 10, clean my Downloads folder: move files older than 30 days into Downloads/old."}
-];
+var openFolds = {};
+var MAX_FILES = 20, MAX_BYTES = 25 * 1024 * 1024;
 
 /* ---------- tiny DOM helper (never uses innerHTML) ---------- */
 function el(tag, attrs) {
@@ -149,11 +267,12 @@ function fmtRelative(epoch) {
   var future = diff >= 0;
   if (abs < 45) return future ? "in a few sec" : "just now";
   var mins = Math.round(abs / 60);
-  if (mins < 60) return future ? "in " + mins + " min" : mins + " min ago";
+  // non-breaking spaces so "in 3 h" never wraps between the number and unit
+  if (mins < 60) return future ? "in\u00a0" + mins + "\u00a0min" : mins + "\u00a0min ago";
   var hours = Math.round(abs / 3600);
-  if (hours < 24) return future ? "in " + hours + " h" : hours + " h ago";
+  if (hours < 24) return future ? "in\u00a0" + hours + "\u00a0h" : hours + "\u00a0h ago";
   var days = Math.round(abs / 86400);
-  return future ? "in " + days + " d" : days + " d ago";
+  return future ? "in\u00a0" + days + "\u00a0d" : days + "\u00a0d ago";
 }
 function fmtExact(epoch) {
   if (epoch === null || epoch === undefined) return "";
@@ -162,26 +281,32 @@ function fmtExact(epoch) {
 function timeSpan(epoch) {
   return el("span", {title: fmtExact(epoch)}, fmtRelative(epoch));
 }
-function timeLine(prefix, epoch) {
-  return el("div", {class: "job-meta"}, prefix, timeSpan(epoch));
-}
-function truncate(s, n) {
-  if (!s) return "";
-  return s.length > n ? s.slice(0, n - 1) + "…" : s;
-}
 function formatSize(n) {
   if (n < 1024) return n + " B";
   if (n < 1024 * 1024) return Math.round(n / 1024) + " KB";
   return (n / 1024 / 1024).toFixed(1) + " MB";
 }
-function fmtTrigger(trigger) {
-  if (!trigger || trigger === "by hand") return "By hand";
-  if (trigger === "always on") return "Always on";
-  if (trigger.indexOf("every ") === 0) return "Runs " + trigger;
-  var m = /^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+\*$/.exec(trigger);
-  if (m) return "Runs every day at " + m[2].padStart(2, "0") + ":" + m[1].padStart(2, "0");
-  return trigger;
+var UNITS = {s: ["second", "sec"], m: ["minute", "min"], h: ["hour", "hours"], d: ["day", "days"]};
+var DAYS = {"*": "Every day", "1-5": "Weekdays", "mon-fri": "Weekdays", "0": "Sundays", "7": "Sundays", "1": "Mondays",
+  "2": "Tuesdays", "3": "Wednesdays", "4": "Thursdays", "5": "Fridays", "6": "Saturdays"};
+function pad2(s) { return String(s).padStart(2, "0"); }
+function fmtCron(c) {
+  var m = /^(\d{1,2}) (\d{1,2}(?:,\d{1,2})*) \* \* (\S+)$/.exec(c);
+  if (!m || !DAYS[m[3]]) return null;
+  return {days: DAYS[m[3]], times: m[2].split(",").map(function (h) { return pad2(h) + ":" + pad2(m[1]); })};
 }
+function fmtTrigger(t) {
+  if (!t || t === "by hand") return "Only when you start it";
+  if (t === "always on") return "Always on";
+  var e = /^every (\d+)([smhd])$/.exec(t);
+  if (e) return e[1] === "1" ? "Every " + UNITS[e[2]][0] : "Every " + e[1] + " " + UNITS[e[2]][1];
+  var parts = t.split(", ").map(fmtCron);
+  if (parts.every(function (p) { return p && p.days === parts[0].days; })) {
+    return parts[0].days + " at " + [].concat.apply([], parts.map(function (p) { return p.times; })).join(", ");
+  }
+  return t;
+}
+var LAST = {ok: "Worked", failed: "Failed", timeout: "Took too long", stopped: "Stopped", running: "Running now"};
 
 /* ---------- network ---------- */
 function showOffline() { document.getElementById("offline-banner").classList.remove("hidden"); }
@@ -194,7 +319,7 @@ function toast(msg, isError) {
   t.classList.remove("hidden");
   t.classList.toggle("toast-error", !!isError);
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(function () { t.classList.add("hidden"); }, 3000);
+  toastTimer = setTimeout(function () { t.classList.add("hidden"); }, 3500);
 }
 
 function api(path, opts) {
@@ -223,6 +348,7 @@ function api(path, opts) {
     });
   });
 }
+function showError(err) { if (err.message !== "unauthorized") toast(err.message, true); }
 
 /* ---------- routing ---------- */
 function parseRoute() {
@@ -235,12 +361,9 @@ function parseRoute() {
 }
 
 function updateTopbar(r) {
-  var back = document.getElementById("back-btn");
-  var gear = document.getElementById("gear-btn");
-  var title = document.getElementById("topbar-title");
-  back.classList.toggle("hidden", r.page === "home");
-  gear.classList.toggle("hidden", r.page === "settings");
-  title.textContent = r.page === "home" ? "Autopilot" : r.page === "new" ? "New autopilot" : r.page === "settings" ? "Settings" : (r.name || "Autopilot");
+  document.getElementById("back-btn").classList.toggle("invisible", r.page === "home");
+  document.getElementById("gear-btn").classList.toggle("invisible", r.page === "settings");
+  document.getElementById("topbar-title").textContent = r.page === "new" ? "New autopilot" : r.page === "settings" ? "Settings" : r.page === "job" ? r.name : "Autopilot";
 }
 
 function render() {
@@ -269,14 +392,13 @@ function renderSignIn() {
   document.getElementById("topbar").classList.add("hidden");
   var root = document.getElementById("app");
   root.textContent = "";
-  var box = el("div", {class: "signin-box"});
-  box.appendChild(el("h2", {}, "Sign in"));
-  box.appendChild(el("div", {class: "muted"}, "Enter the 6-digit code shown on your computer. On the computer, open Autopilot and tap Add a phone, or run: autopilot open"));
-  var input = el("input", {type: "text", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "6", class: "code-input", placeholder: "123456"});
+  var box = el("div", {class: "card signin-box"}, el("img", {src: "/icon.svg", alt: ""}), el("h1", {}, "Sign in to Autopilot"));
+  box.appendChild(el("p", {class: "muted"}, "Enter the 6-digit code shown on your computer. On the computer, open Autopilot and tap Add a phone, or run: autopilot open"));
+  var input = el("input", {type: "text", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "6", class: "input code-input", placeholder: "123456"});
   box.appendChild(input);
   var errBox = el("div", {class: "error-text hidden"});
-  var btn = el("button", {class: "btn btn-primary btn-block"}, "Sign in");
-  btn.addEventListener("click", async function () {
+  var btn = el("button", {class: "btn btn-primary btn-lg btn-block"}, "Sign in");
+  async function signIn() {
     var code = input.value.trim();
     if (!/^\d{6}$/.test(code)) {
       errBox.textContent = "Enter the 6-digit code.";
@@ -306,7 +428,9 @@ function renderSignIn() {
       errBox.textContent = "Can't reach the computer. Is it on and awake?";
       errBox.classList.remove("hidden");
     } finally { btn.disabled = false; }
-  });
+  }
+  btn.addEventListener("click", signIn);
+  input.addEventListener("keydown", function (e) { if (e.key === "Enter") signIn(); });
   box.appendChild(btn);
   box.appendChild(errBox);
   root.appendChild(box);
@@ -314,18 +438,11 @@ function renderSignIn() {
 }
 
 /* ---------- job status pill + sorting ---------- */
+var LABELS = {running: "Running", ok: "All good", failed: "Failed", broken: "Needs a fix", paused: "Paused", idle: "Waiting", building: "Building"};
+function statusOf(job) { return job.building ? "building" : (job.status || "idle"); }
 function statusPill(job) {
-  var cls, label, pulse = false;
-  if (job.building) { cls = "building"; label = "Building"; }
-  else {
-    cls = job.status || "idle";
-    label = cls === "ok" ? "OK" : cls.charAt(0).toUpperCase() + cls.slice(1);
-    pulse = cls === "running";
-  }
-  var p = el("span", {class: "pill pill-" + cls});
-  if (pulse) p.appendChild(el("span", {class: "dot pulse"}));
-  p.appendChild(document.createTextNode(label));
-  return p;
+  var s = statusOf(job);
+  return el("span", {class: "pill pill-" + s + (s === "running" || s === "building" ? " live" : "")}, LABELS[s] || s);
 }
 function jobRank(job) {
   if (job.status === "failed" || job.status === "broken") return 0;
@@ -344,7 +461,7 @@ async function jobAction(name, action, btn) {
     await api("/api/action", {method: "POST", body: JSON.stringify({name: name, action: action})});
     await refreshState();
   } catch (err) {
-    if (err.message !== "unauthorized") toast(err.message, true);
+    showError(err);
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -354,70 +471,83 @@ function actionButton(label, name, action, cls) {
   btn.addEventListener("click", function () { jobAction(name, action, btn); });
   return btn;
 }
-function primaryActionButton(job) {
-  return job.kind === "service" ? actionButton("Restart", job.name, "restart") : actionButton("Run now", job.name, "run");
+function primaryActionButton(job, cls) {
+  return job.kind === "service" ? actionButton("Restart", job.name, "restart", cls) : actionButton("Run now", job.name, "run", cls);
 }
-function pauseResumeButton(job) {
-  return actionButton(job.paused ? "Resume" : "Pause", job.name, job.paused ? "resume" : "pause");
+function pauseResumeButton(job, cls) {
+  return actionButton(job.paused ? "Resume" : "Pause", job.name, job.paused ? "resume" : "pause", cls);
 }
-function openLinkButton(job) {
-  return job.url ? el("a", {href: job.url, target: "_blank", rel: "noopener", class: "btn btn-ghost"}, "Open") : null;
+function openLinkButton(job, cls) {
+  return job.url ? el("a", {href: job.url, target: "_blank", rel: "noopener", class: cls}, "Open ↗") : null;
 }
 
 /* ---------- home ---------- */
+function stat(n, label, cls) {
+  return el("span", {class: "stat " + cls}, el("b", {}, String(n)), " " + label);
+}
 function renderHome(root) {
-  var bar = el("div", {class: "device-bar"});
-  bar.appendChild(el("div", {class: "device-name"}, state.device.name));
+  var jobs = state.jobs.slice().sort(sortJobs);
+  var count = function (s) { return jobs.filter(function (j) { return statusOf(j) === s; }).length; };
+  var live = count("running") + count("building"), bad = count("failed") + count("broken"), paused = count("paused");
+  var stats = el("div", {class: "stats"});
+  if (jobs.length) {
+    stats.appendChild(stat(jobs.length - live - bad - paused, "all good", "stat-ok"));
+    if (live) stats.appendChild(stat(live, "running now", "stat-live"));
+    if (bad) stats.appendChild(stat(bad, bad === 1 ? "needs a look" : "need a look", "stat-bad"));
+    if (paused) stats.appendChild(stat(paused, "paused", ""));
+  }
+
   var pauseBtn = el("button", {class: "btn"}, state.device.paused_all ? "Resume all" : "Pause all");
   pauseBtn.addEventListener("click", async function () {
     pauseBtn.disabled = true;
     try {
       await api("/api/pause_all", {method: "POST", body: JSON.stringify({paused: !state.device.paused_all})});
       await refreshState();
-    } catch (err) { if (err.message !== "unauthorized") toast(err.message, true); }
+    } catch (err) { showError(err); }
     finally { pauseBtn.disabled = false; }
   });
-  bar.appendChild(pauseBtn);
-  root.appendChild(bar);
+  var newBtn = el("a", {href: "#/new", class: "btn btn-primary"}, "+ New autopilot");
+  root.appendChild(el("div", {class: "home-head"},
+    el("div", {}, el("h1", {}, state.device.name), stats),
+    el("div", {class: "home-actions"}, pauseBtn, newBtn)));
 
-  var newBtn = el("button", {class: "btn btn-primary btn-block"}, "+ New autopilot");
-  newBtn.addEventListener("click", function () { location.hash = "#/new"; });
-  root.appendChild(newBtn);
+  if (state.device.paused_all) root.appendChild(el("div", {class: "notice"}, "Everything is paused. Nothing runs until you tap Resume all."));
+  (state.device.problems || []).forEach(function (p) { root.appendChild(el("div", {class: "notice"}, p)); });
 
-  (state.device.problems || []).forEach(function (p) {
-    root.appendChild(el("div", {class: "card problem-card"}, p));
-  });
-
-  if (!state.jobs.length) {
-    root.appendChild(el("div", {class: "muted center"}, "No autopilots yet. Tap New autopilot to build one."));
-  } else {
-    state.jobs.slice().sort(sortJobs).forEach(function (job) { root.appendChild(renderJobCard(job)); });
+  if (!jobs.length) {
+    root.appendChild(el("div", {class: "card empty-state"},
+      el("img", {src: "/icon.svg", alt: ""}),
+      el("h2", {}, "No autopilots yet"),
+      el("p", {}, "Describe a job in plain words. The AI on this computer builds it and keeps it running."),
+      el("a", {href: "#/new", class: "btn btn-primary btn-lg"}, "+ New autopilot")));
+    return;
   }
+  var grid = el("div", {class: "job-grid"});
+  jobs.forEach(function (job) { grid.appendChild(renderJobCard(job)); });
+  root.appendChild(grid);
 }
 
 function renderJobCard(job) {
-  var card = el("div", {class: "card"});
-  var head = el("button", {class: "job-head"}, el("span", {class: "job-name"}, job.name), statusPill(job));
-  head.addEventListener("click", function () { location.hash = "#/job/" + encodeURIComponent(job.name); });
-  card.appendChild(head);
-  card.appendChild(el("div", {class: "job-meta"}, fmtTrigger(job.trigger)));
-  if (job.next && !job.paused) card.appendChild(timeLine("Next run: ", job.next));
-  if (job.error) card.appendChild(el("div", {class: "error-text"}, job.error));
-  if (job.last) {
-    var line = el("div", {class: "job-meta"}, job.last.status + " ", timeSpan(job.last.ended || job.last.started));
-    card.appendChild(line);
-    if (job.last.summary) card.appendChild(el("div", {class: "job-summary"}, truncate(job.last.summary, 90)));
+  var href = "#/job/" + encodeURIComponent(job.name);
+  var s = statusOf(job);
+  var card = el("div", {class: "card job-card" + (s === "failed" || s === "broken" ? " is-bad" : "")});
+  card.addEventListener("click", function (e) { if (!e.target.closest("a,button")) location.hash = href; });
+  card.appendChild(el("div", {class: "job-card-top"}, el("a", {href: href, class: "job-name"}, job.name), statusPill(job)));
+  var about = job.about || (job.building ? "The AI is building it now" : "No description yet");
+  card.appendChild(el("div", {class: "job-about" + (job.about ? "" : " empty")}, about));
+  var when = fmtTrigger(job.trigger);
+  if (job.next && !job.paused) when += " · next " + fmtRelative(job.next);
+  card.appendChild(el("div", {class: "job-meta"}, when));
+  if (job.error) card.appendChild(el("div", {class: "job-error"}, job.error));
+  else if (job.last) {
+    var last = "Last run " + fmtRelative(job.last.ended || job.last.started) + (job.last.summary ? ": " + job.last.summary : "");
+    card.appendChild(el("div", {class: "job-last", title: fmtExact(job.last.ended || job.last.started)}, last));
   }
-  card.appendChild(homeJobActions(job));
-  return card;
-}
-function homeJobActions(job) {
-  var row = el("div", {class: "action-row"});
-  row.appendChild(primaryActionButton(job));
-  row.appendChild(pauseResumeButton(job));
-  var link = openLinkButton(job);
+  var row = el("div", {class: "action-row"}, primaryActionButton(job, "btn btn-sm"), pauseResumeButton(job, "btn btn-sm btn-ghost"));
+  var link = openLinkButton(job, "btn btn-sm btn-ghost");
   if (link) row.appendChild(link);
-  return row;
+  card.appendChild(row);
+  return card;
 }
 
 /* ---------- job page ---------- */
@@ -434,10 +564,10 @@ function renderJobPage(root, name) {
   loadJobDetail(name, detail);
 }
 function runKey(job) { return job.last ? job.last.id + job.last.status : ""; }
-// never swap the page under someone typing, reading a file or looking at an older run
+// never swap the page under someone typing, attaching files, reading a file or looking at an older run
 function detailBusy() {
   var d = document.getElementById("job-detail");
-  return !d || !followingLatestLog || !!d.querySelector(".file-editor:not(.hidden)") ||
+  return !d || !followingLatestLog || !!d.querySelector(".file-editor:not(.hidden), .attach-item") ||
     [].some.call(d.querySelectorAll("textarea"), function (t) { return t.value !== t.defaultValue; });
 }
 function refreshJobTop() {
@@ -445,7 +575,7 @@ function refreshJobTop() {
   if (r.page !== "job") return;
   var job = state.jobs.find(function (j) { return j.name === r.name; });
   var old = document.getElementById("job-top");
-  if (!old) return;
+  if (!old || old.querySelector(".delete-confirm")) return;
   if (job) old.replaceWith(renderJobTop(job));
   else old.replaceWith(el("div", {class: "card", id: "job-top"}, "This autopilot was not found. It may have been deleted."));
   if (job && runKey(job) !== detailKey && !detailBusy()) {
@@ -453,24 +583,35 @@ function refreshJobTop() {
     loadJobDetail(job.name, document.getElementById("job-detail"), true);
   }
 }
+function metaItem(label, value) {
+  return el("div", {class: "meta-item"}, el("div", {class: "meta-label"}, label), el("div", {class: "meta-value"}, value));
+}
 function renderJobTop(job) {
-  var box = el("div", {class: "card", id: "job-top"});
-  box.appendChild(statusPill(job));
-  box.appendChild(el("div", {class: "job-meta"}, fmtTrigger(job.trigger)));
-  if (job.next && !job.paused) box.appendChild(timeLine("Next run: ", job.next));
-  if (job.running_since) box.appendChild(timeLine("Running since: ", job.running_since));
+  var box = el("div", {class: "card hero", id: "job-top"});
+  box.appendChild(el("div", {class: "hero-head"}, el("h1", {}, job.name), statusPill(job)));
+  if (job.about) box.appendChild(el("p", {class: "hero-about"}, job.about));
+
+  var meta = el("div", {class: "meta-grid"});
+  meta.appendChild(metaItem("When", fmtTrigger(job.trigger)));
+  if (job.running_since) meta.appendChild(metaItem("Running since", timeSpan(job.running_since)));
+  else if (job.next && !job.paused) meta.appendChild(metaItem("Next run", timeSpan(job.next)));
   if (job.last) {
-    box.appendChild(el("div", {class: "job-meta"}, "Last run: " + job.last.status + " ", timeSpan(job.last.ended || job.last.started)));
-    if (job.last.summary) box.appendChild(el("div", {class: "job-summary"}, job.last.summary));
+    meta.appendChild(metaItem("Last run", el("span", {}, (LAST[job.last.status] || job.last.status) + ", ", timeSpan(job.last.ended || job.last.started))));
+  } else {
+    meta.appendChild(metaItem("Last run", "Never yet"));
   }
-  if (job.error) box.appendChild(el("div", {class: "error-text"}, job.error));
+  box.appendChild(meta);
+  if (job.last && job.last.summary) box.appendChild(el("div", {class: "summary-box"}, job.last.summary));
+  if (job.error) box.appendChild(el("div", {class: "error-box"}, job.error));
+
   var row = el("div", {class: "action-row"});
-  row.appendChild(primaryActionButton(job));
+  row.appendChild(primaryActionButton(job, "btn btn-primary"));
   if (job.status === "running") row.appendChild(actionButton("Stop", job.name, "stop"));
   row.appendChild(pauseResumeButton(job));
-  var link = openLinkButton(job);
+  var link = openLinkButton(job, "btn");
   if (link) row.appendChild(link);
-  var delBtn = el("button", {class: "btn btn-danger"}, "Delete");
+  row.appendChild(el("span", {class: "spacer"}));
+  var delBtn = el("button", {class: "btn btn-ghost btn-danger"}, "Delete");
   delBtn.addEventListener("click", function () { showDeleteConfirm(job.name, row, delBtn); });
   row.appendChild(delBtn);
   box.appendChild(row);
@@ -479,8 +620,8 @@ function renderJobTop(job) {
 function showDeleteConfirm(name, row, delBtn) {
   delBtn.classList.add("hidden");
   var box = el("div", {class: "delete-confirm"});
-  box.appendChild(el("span", {class: "muted"}, "Type the name to delete:"));
-  var input = el("input", {type: "text", class: "delete-input", autocomplete: "off"});
+  box.appendChild(el("span", {class: "muted"}, "Type " + name + " to delete it for good:"));
+  var input = el("input", {type: "text", class: "input", autocomplete: "off", autocapitalize: "off", spellcheck: "false"});
   var confirmBtn = el("button", {class: "btn btn-danger"}, "Delete for good");
   confirmBtn.disabled = true;
   input.addEventListener("input", function () { confirmBtn.disabled = input.value !== name; });
@@ -492,7 +633,7 @@ function showDeleteConfirm(name, row, delBtn) {
       location.hash = "#/";
       await refreshState();
     } catch (err) {
-      if (err.message !== "unauthorized") toast(err.message, true);
+      showError(err);
       confirmBtn.disabled = false;
     }
   });
@@ -502,12 +643,13 @@ function showDeleteConfirm(name, row, delBtn) {
   box.appendChild(confirmBtn);
   box.appendChild(cancelBtn);
   row.appendChild(box);
+  input.focus();
 }
 
 async function loadJobDetail(name, container, quiet) {
   if (!quiet) {
     container.textContent = "";
-    container.appendChild(el("div", {class: "muted"}, "Loading…"));
+    container.appendChild(el("div", {class: "muted section"}, "Loading…"));
   }
   try {
     var data = await api("/api/job?name=" + encodeURIComponent(name));
@@ -517,21 +659,20 @@ async function loadJobDetail(name, container, quiet) {
   } catch (err) {
     if (err.message !== "unauthorized") {
       container.textContent = "";
-      container.appendChild(el("div", {class: "card"}, "Could not load: " + err.message));
+      container.appendChild(el("div", {class: "card section"}, "Could not load: " + err.message));
     }
   }
 }
 function renderJobSections(name, data) {
   var wrap = document.createDocumentFragment();
 
-  var logSec = el("div", {class: "section"});
-  logSec.appendChild(el("h3", {}, "Latest log"));
-  var runSelect = el("select", {class: "run-select"});
+  var logSec = el("div", {class: "card section"});
+  var runSelect = el("select", {class: "run-select", "aria-label": "Pick a run"});
   (data.runs || []).forEach(function (run) {
-    runSelect.appendChild(el("option", {value: run.id}, run.status + " - " + fmtExact(run.started)));
+    runSelect.appendChild(el("option", {value: run.id}, (LAST[run.status] || run.status) + " · " + fmtExact(run.started)));
   });
   runSelect.addEventListener("change", function () { followingLatestLog = false; loadLog(runSelect.value); });
-  logSec.appendChild(runSelect);
+  logSec.appendChild(el("div", {class: "section-head"}, el("h2", {}, "What it did"), runSelect.options.length ? runSelect : null));
   var logBox = el("pre", {class: "logbox"}, "");
   logSec.appendChild(logBox);
   logBoxEl = logBox; logRunSelectEl = runSelect;
@@ -550,7 +691,7 @@ async function loadLog(runId) {
   try {
     var text = await api(url);
     if (logBoxEl) {
-      logBoxEl.textContent = typeof text === "string" ? text : "";
+      logBoxEl.textContent = typeof text === "string" && text ? text : "Nothing here yet.";
       logBoxEl.scrollTop = logBoxEl.scrollHeight;
     }
   } catch (err) {
@@ -558,45 +699,140 @@ async function loadLog(runId) {
   }
 }
 
+/* ---------- composer: a big text box that takes pasted, dropped or picked files ---------- */
+function hasFiles(e) { return !!e.dataTransfer && [].indexOf.call(e.dataTransfer.types || [], "Files") !== -1; }
+function extOf(name) { var m = /\.([a-z0-9]{1,5})$/i.exec(name || ""); return m ? m[1].toUpperCase() : "FILE"; }
+function readFile(f) {
+  return new Promise(function (ok, fail) {
+    var r = new FileReader();
+    r.onload = function () { ok({name: f.name || "file", data: String(r.result).split(",")[1] || ""}); };
+    r.onerror = function () { fail(new Error("Could not read " + (f.name || "a file"))); };
+    r.readAsDataURL(f);
+  });
+}
+function composer(placeholder, submit, small) {
+  var items = [];
+  var box = el("div", {class: "composer" + (small ? " composer-sm" : "")});
+  var input = el("textarea", {class: "composer-input", rows: small ? "4" : "8", placeholder: placeholder});
+  var list = el("div", {class: "attach-list"});
+  var picker = el("input", {type: "file", multiple: "", class: "hidden"});
+  var addBtn = el("button", {type: "button", class: "btn btn-sm btn-ghost"}, "+ Add files");
+  var bar = el("div", {class: "composer-bar"}, addBtn, el("span", {class: "composer-hint"}, "Paste or drop screenshots and files here"));
+  box.appendChild(input);
+  box.appendChild(list);
+  box.appendChild(bar);
+  box.appendChild(picker);
+
+  function remove(item) {
+    if (item.url) URL.revokeObjectURL(item.url);
+    items.splice(items.indexOf(item), 1);
+    item.node.remove();
+  }
+  function add(fileList) {
+    var total = items.reduce(function (n, it) { return n + it.file.size; }, 0);
+    for (var i = 0; i < fileList.length; i++) {
+      var f = fileList[i];
+      if (items.length >= MAX_FILES) { toast("You can attach up to " + MAX_FILES + " files", true); return; }
+      if (total + f.size > MAX_BYTES) { toast("The files can add up to 25 MB at most", true); return; }
+      total += f.size;
+      var item = {file: f, url: /^image\//.test(f.type) ? URL.createObjectURL(f) : null};
+      var label = el("span", {class: "attach-thumb attach-ext"}, extOf(f.name));
+      var thumb = label;
+      if (item.url) {
+        thumb = el("img", {class: "attach-thumb", src: item.url, alt: ""});
+        thumb.addEventListener("error", function (lbl) { this.replaceWith(lbl); }.bind(thumb, label));
+      }
+      var x = el("button", {type: "button", class: "attach-x", "aria-label": "Remove " + (f.name || "file"), title: "Remove"}, "×");
+      x.addEventListener("click", remove.bind(null, item));
+      item.node = el("div", {class: "attach-item", title: f.name || ""}, thumb,
+        el("div", {class: "attach-info"}, el("span", {class: "attach-name"}, f.name || "pasted file"), el("span", {class: "attach-size"}, formatSize(f.size))), x);
+      items.push(item);
+      list.appendChild(item.node);
+    }
+  }
+
+  addBtn.addEventListener("click", function () { picker.click(); });
+  picker.addEventListener("change", function () { add(picker.files); picker.value = ""; });
+  box.addEventListener("paste", function (e) {
+    var cd = e.clipboardData;
+    if (!cd || !cd.files || !cd.files.length) return;
+    if (!cd.getData("text/plain")) e.preventDefault();
+    add(cd.files);
+  });
+  box.addEventListener("dragover", function (e) { if (!hasFiles(e)) return; e.preventDefault(); box.classList.add("drag"); });
+  box.addEventListener("dragleave", function (e) { if (!box.contains(e.relatedTarget)) box.classList.remove("drag"); });
+  box.addEventListener("drop", function (e) {
+    box.classList.remove("drag");
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    add(e.dataTransfer.files);
+  });
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submit(); }
+  });
+
+  return {
+    el: box, bar: bar, input: input,
+    text: function () { return input.value.trim(); },
+    files: function () { return Promise.all(items.map(function (it) { return readFile(it.file); })); },
+    clear: function () { input.value = ""; items.slice().forEach(remove); }
+  };
+}
+
 function renderBuildSection(name) {
-  var sec = el("div", {class: "section"});
-  sec.appendChild(el("h3", {}, "Change it with AI"));
-  var ta = el("textarea", {class: "build-textarea", rows: "3", placeholder: "Tell it what to change"});
-  sec.appendChild(ta);
-  var btn = el("button", {class: "btn btn-primary"}, "Send");
-  btn.addEventListener("click", async function () {
-    var instruction = ta.value.trim();
-    if (!instruction) return;
-    btn.disabled = true;
+  var sec = el("div", {class: "card section"});
+  sec.appendChild(el("div", {class: "section-head"}, el("h2", {}, "Change it with AI")));
+  sec.appendChild(el("p", {class: "section-sub"}, "Say what to change in plain words. Add screenshots or files if they help explain it."));
+  var sendBtn = el("button", {class: "btn btn-primary btn-sm"}, "Send");
+  var c = composer("For example: also send me the result by email, and skip weekends", send, true);
+  c.bar.appendChild(sendBtn);
+  sendBtn.addEventListener("click", send);
+  async function send() {
+    var instruction = c.text();
+    if (!instruction) { toast("Say what to change first", true); c.input.focus(); return; }
+    if (sendBtn.disabled) return;
+    sendBtn.disabled = true;
     try {
-      await api("/api/build", {method: "POST", body: JSON.stringify({name: name, instruction: instruction})});
-      ta.value = "";
-      toast("Working on it…");
+      var files = await c.files();
+      await api("/api/build", {method: "POST", body: JSON.stringify({name: name, instruction: instruction, files: files})});
+      c.clear();
+      toast("Working on it. Watch the log above.");
       followingLatestLog = true;
       await refreshState();
       loadLog();
-    } catch (err) { if (err.message !== "unauthorized") toast(err.message, true); }
-    finally { btn.disabled = false; }
-  });
-  sec.appendChild(btn);
+    } catch (err) { showError(err); }
+    finally { sendBtn.disabled = false; }
+  }
+  sec.appendChild(c.el);
   return sec;
 }
 
+function fold(title, key, count) {
+  var d = el("details", {class: "card section fold"});
+  d.open = !!openFolds[key];
+  d.addEventListener("toggle", function () { openFolds[key] = d.open; });
+  d.appendChild(el("summary", {}, el("span", {}, title, count === undefined ? null : el("span", {class: "count"}, "  " + count))));
+  var body = el("div", {class: "fold-body"});
+  d.appendChild(body);
+  return {el: d, body: body};
+}
+
 function renderFilesSection(name, files) {
-  var sec = el("div", {class: "section"});
-  sec.appendChild(el("h3", {}, "Files"));
+  var f = fold("Files", "files", files && files.length ? files.length : undefined);
   if (!files || !files.length) {
-    sec.appendChild(el("div", {class: "muted"}, "No files yet."));
-    return sec;
+    f.body.appendChild(el("div", {class: "muted"}, "No files yet."));
+    return f.el;
   }
   var editorBox = el("div", {class: "file-editor hidden"});
-  files.forEach(function (f) {
-    var row = el("button", {class: "file-row"}, el("span", {class: "file-path"}, f.path), el("span", {class: "file-size"}, formatSize(f.size)));
-    row.addEventListener("click", function () { openFile(name, f, editorBox); });
-    sec.appendChild(row);
+  var list = el("div", {class: "file-list"});
+  files.forEach(function (file) {
+    var row = el("button", {class: "file-row"}, el("span", {class: "file-path"}, file.path), el("span", {class: "file-size"}, formatSize(file.size)));
+    row.addEventListener("click", function () { openFile(name, file, editorBox); });
+    list.appendChild(row);
   });
-  sec.appendChild(editorBox);
-  return sec;
+  f.body.appendChild(list);
+  f.body.appendChild(editorBox);
+  return f.el;
 }
 async function openFile(name, f, editorBox) {
   editorBox.textContent = "";
@@ -607,13 +843,13 @@ async function openFile(name, f, editorBox) {
     editorBox.textContent = "";
     editorBox.appendChild(el("div", {class: "file-editor-title"}, f.path));
     var editable = /\.(md|txt|csv|json|toml)$/i.test(f.path);
-    var ta = el("textarea", {class: "file-textarea", rows: "12"});
+    var ta = el("textarea", {class: "textarea-mono", rows: "14"});
     ta.value = typeof text === "string" ? text : "";
     ta.readOnly = !editable;
     editorBox.appendChild(ta);
     var row = el("div", {class: "row-buttons"});
     if (editable) {
-      var saveBtn = el("button", {class: "btn btn-primary"}, "Save");
+      var saveBtn = el("button", {class: "btn btn-primary btn-sm"}, "Save");
       var note = el("span", {class: "saved-note hidden"}, "Saved");
       saveBtn.addEventListener("click", async function () {
         saveBtn.disabled = true;
@@ -621,7 +857,7 @@ async function openFile(name, f, editorBox) {
           await api("/api/file", {method: "POST", body: JSON.stringify({name: name, where: f.where, path: f.path, text: ta.value})});
           note.classList.remove("hidden");
           setTimeout(function () { note.classList.add("hidden"); }, 2000);
-        } catch (err) { if (err.message !== "unauthorized") toast(err.message, true); }
+        } catch (err) { showError(err); }
         finally { saveBtn.disabled = false; }
       });
       row.appendChild(saveBtn);
@@ -629,24 +865,24 @@ async function openFile(name, f, editorBox) {
     } else {
       row.appendChild(el("span", {class: "muted"}, "This file type can only be viewed here."));
     }
-    var closeBtn = el("button", {class: "btn btn-ghost"}, "Close");
+    var closeBtn = el("button", {class: "btn btn-ghost btn-sm"}, "Close");
     closeBtn.addEventListener("click", function () { editorBox.classList.add("hidden"); editorBox.textContent = ""; });
     row.appendChild(closeBtn);
     editorBox.appendChild(row);
   } catch (err) {
     editorBox.textContent = "";
-    if (err.message !== "unauthorized") editorBox.appendChild(el("div", {class: "card"}, "Could not open file: " + err.message));
+    if (err.message !== "unauthorized") editorBox.appendChild(el("div", {class: "error-text"}, "Could not open file: " + err.message));
   }
 }
 
 function renderSettingsFileSection(name, text) {
-  var sec = el("div", {class: "section"});
-  sec.appendChild(el("h3", {}, "Settings file"));
-  var ta = el("textarea", {class: "settings-textarea", rows: "14"});
+  var f = fold("Settings file", "settings");
+  f.body.appendChild(el("p", {class: "section-sub"}, "The file the AI wrote. Change it by hand only if you know what you are doing."));
+  var ta = el("textarea", {class: "textarea-mono", rows: "16", spellcheck: "false"});
   ta.defaultValue = typeof text === "string" ? text : "";
-  sec.appendChild(ta);
+  f.body.appendChild(ta);
   var row = el("div", {class: "row-buttons"});
-  var saveBtn = el("button", {class: "btn btn-primary"}, "Save");
+  var saveBtn = el("button", {class: "btn btn-primary btn-sm"}, "Save");
   var note = el("span", {class: "saved-note hidden"}, "Saved");
   var errBox = el("div", {class: "error-text hidden"});
   saveBtn.addEventListener("click", async function () {
@@ -664,68 +900,79 @@ function renderSettingsFileSection(name, text) {
   });
   row.appendChild(saveBtn);
   row.appendChild(note);
-  sec.appendChild(row);
-  sec.appendChild(errBox);
-  return sec;
+  f.body.appendChild(row);
+  f.body.appendChild(errBox);
+  return f.el;
 }
 
 /* ---------- new autopilot ---------- */
 function renderNewPage(root) {
-  root.appendChild(el("div", {class: "muted"}, "The AI on this computer writes the autopilot, tests it, and switches it on. You can watch it below."));
-  var ta = el("textarea", {class: "new-textarea", rows: "5", placeholder: "What should it do?"});
-  root.appendChild(ta);
-  var chipsRow = el("div", {class: "chips"});
-  EXAMPLES.forEach(function (ex) {
-    var chip = el("button", {class: "chip"}, ex.label);
-    chip.addEventListener("click", function () { ta.value = ex.text; ta.focus(); });
-    chipsRow.appendChild(chip);
-  });
-  root.appendChild(chipsRow);
+  var page = el("div", {class: "narrow"});
+  page.appendChild(el("h1", {class: "page-title"}, "What should it do?"));
+  page.appendChild(el("p", {class: "page-sub"}, "Describe the job like you would to a helper: what to do, when, and how you want to hear about it. The AI on this computer builds it, tests it and switches it on."));
 
-  var nameRow = el("div", {class: "field"});
-  nameRow.appendChild(el("label", {}, "Name (optional)"));
-  var nameInput = el("input", {type: "text", class: "name-input", placeholder: "e.g. fellowship-finder"});
-  nameRow.appendChild(nameInput);
-  root.appendChild(nameRow);
+  var btn = el("button", {class: "btn btn-primary btn-lg btn-block build-btn"}, "Build it");
+  var c = composer("Write as much detail as you like. Paste screenshots or add files that help explain it.", build);
+  page.appendChild(c.el);
 
-  var btn = el("button", {class: "btn btn-primary btn-block"}, "Build it");
-  btn.addEventListener("click", async function () {
-    var instruction = ta.value.trim();
-    if (!instruction) { toast("Say what it should do first", true); return; }
+  var dash = el("input", {type: "checkbox"});
+  page.appendChild(el("label", {class: "toggle"}, dash, el("span", {class: "switch"}),
+    el("span", {class: "toggle-text"}, "It needs its own dashboard",
+      el("small", {}, "A web page you can open to see what it found and control it. Leave this off for jobs that just run and send you a message."))));
+
+  var nameInput = el("input", {type: "text", class: "input", placeholder: "Leave empty and one is picked for you", autocapitalize: "off", spellcheck: "false"});
+  page.appendChild(el("div", {class: "field"}, el("label", {}, "Name ", el("span", {class: "optional"}, "(optional)")), nameInput));
+
+  btn.addEventListener("click", build);
+  async function build() {
+    var instruction = c.text();
+    if (!instruction) { toast("Describe what it should do first", true); c.input.focus(); return; }
+    if (btn.disabled) return;
     var nm = nameInput.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50);
     btn.disabled = true;
+    btn.textContent = "Starting…";
     try {
-      var body = {instruction: instruction};
+      var body = {instruction: instruction, files: await c.files(), dashboard: dash.checked};
       if (nm) body.new_name = nm;
       var data = await api("/api/build", {method: "POST", body: JSON.stringify(body)});
+      c.clear();
       await refreshState();
       location.hash = "#/job/" + encodeURIComponent(data.name);
-    } catch (err) { if (err.message !== "unauthorized") toast(err.message, true); }
-    finally { btn.disabled = false; }
-  });
-  root.appendChild(btn);
+    } catch (err) { showError(err); }
+    finally { btn.disabled = false; btn.textContent = "Build it"; }
+  }
+  page.appendChild(btn);
+  root.appendChild(page);
+  c.input.focus();
 }
 
 /* ---------- settings ---------- */
 function renderSettingsPage(root) {
-  root.appendChild(renderEnginesSection());
-  root.appendChild(renderPhoneSection());
-  root.appendChild(renderAlertsSection());
-  root.appendChild(renderHomeScreenHint());
+  var page = el("div", {class: "narrow"});
+  page.appendChild(renderEnginesSection());
+  page.appendChild(renderPhoneSection());
+  page.appendChild(renderAlertsSection());
+  page.appendChild(renderHomeScreenHint());
+  root.appendChild(page);
+}
+function settingsCard(title, sub) {
+  var sec = el("div", {class: "card section"}, el("div", {class: "section-head"}, el("h2", {}, title)));
+  if (sub) sec.appendChild(el("p", {class: "section-sub"}, sub));
+  return sec;
 }
 function renderEnginesSection() {
-  var sec = el("div", {class: "section"});
-  sec.appendChild(el("h3", {}, "AI tools, in backup order"));
+  var sec = settingsCard("AI tools", "Autopilot uses the first one. If it fails or runs out, the next one takes over.");
   var found = state.engines.filter(function (e) { return e.found; }).map(function (e) { return e.name; });
   var notFound = state.engines.filter(function (e) { return !e.found; }).map(function (e) { return e.name; });
   var order = found.slice();
-  var list = el("div", {});
+  var list = el("div", {class: "engine-list"});
   function draw() {
     list.textContent = "";
     order.forEach(function (name, i) {
       var row = el("div", {class: "engine-row"});
+      row.appendChild(el("span", {class: "engine-num"}, String(i + 1)));
       row.appendChild(el("span", {class: "engine-name"}, name));
-      row.appendChild(el("span", {class: "engine-tag found"}, "found"));
+      row.appendChild(el("span", {class: "engine-tag found"}, "installed"));
       var upBtn = el("button", {class: "iconbtn", "aria-label": "Move up"}, "▲");
       upBtn.disabled = i === 0;
       upBtn.addEventListener("click", function () { var t = order[i - 1]; order[i - 1] = order[i]; order[i] = t; draw(); });
@@ -738,8 +985,9 @@ function renderEnginesSection() {
     });
     notFound.forEach(function (name) {
       var row = el("div", {class: "engine-row dim"});
+      row.appendChild(el("span", {class: "engine-num"}, "·"));
       row.appendChild(el("span", {class: "engine-name"}, name));
-      row.appendChild(el("span", {class: "engine-tag"}, "not found"));
+      row.appendChild(el("span", {class: "engine-tag"}, "not installed"));
       list.appendChild(row);
     });
   }
@@ -752,15 +1000,14 @@ function renderEnginesSection() {
       await api("/api/engines", {method: "POST", body: JSON.stringify({order: order})});
       toast("Saved");
       await refreshState();
-    } catch (err) { if (err.message !== "unauthorized") toast(err.message, true); }
+    } catch (err) { showError(err); }
     finally { saveBtn.disabled = false; }
   });
   sec.appendChild(saveBtn);
   return sec;
 }
 function renderPhoneSection() {
-  var sec = el("div", {class: "section"});
-  sec.appendChild(el("h3", {}, "Phone"));
+  var sec = settingsCard("Phone", "See and control everything from your phone.");
   var resultBox = el("div", {});
   var btn = el("button", {class: "btn btn-primary"}, "Add a phone");
   btn.addEventListener("click", async function () {
@@ -769,10 +1016,10 @@ function renderPhoneSection() {
       var data = await api("/api/pair/new", {method: "POST", body: JSON.stringify({})});
       resultBox.textContent = "";
       if (data.url) {
-        resultBox.appendChild(el("div", {class: "muted"}, "On your phone, open this address, then enter the code:"));
+        resultBox.appendChild(el("p", {class: "muted", style: "margin-top:14px"}, "On your phone, open this address, then enter the code:"));
         resultBox.appendChild(el("span", {class: "phone-url"}, data.url));
       } else {
-        resultBox.appendChild(el("div", {class: "muted"}, "Phone access is off. On the computer run: autopilot phone"));
+        resultBox.appendChild(el("p", {class: "muted", style: "margin-top:14px"}, "Phone access is off. On the computer run: autopilot phone"));
       }
       resultBox.appendChild(el("div", {class: "phone-code"}, data.code));
       var countdownEl = el("div", {class: "muted center"});
@@ -784,7 +1031,7 @@ function renderPhoneSection() {
         countdownEl.textContent = "Expires in " + m + ":" + (s < 10 ? "0" : "") + s;
       }, 1000);
       extraTimers.push(timer);
-    } catch (err) { if (err.message !== "unauthorized") toast(err.message, true); }
+    } catch (err) { showError(err); }
     finally { btn.disabled = false; }
   });
   sec.appendChild(btn);
@@ -792,21 +1039,19 @@ function renderPhoneSection() {
   return sec;
 }
 function renderAlertsSection() {
-  var sec = el("div", {class: "section"});
-  sec.appendChild(el("h3", {}, "Alerts"));
+  var sec = settingsCard("Alerts");
   if (state.alerts && state.alerts.subscribe_url) {
-    sec.appendChild(el("div", {class: "muted"}, "Install the free ntfy app and subscribe to this link:"));
+    sec.appendChild(el("p", {class: "muted"}, "Install the free ntfy app and subscribe to this link:"));
     sec.appendChild(el("a", {href: state.alerts.subscribe_url, target: "_blank", rel: "noopener", class: "phone-url"}, state.alerts.subscribe_url));
   } else {
-    sec.appendChild(el("div", {class: "muted"}, "Alerts are off. Run autopilot setup to turn them on."));
+    sec.appendChild(el("p", {class: "muted"}, "Alerts are off. Run autopilot setup to turn them on."));
   }
   return sec;
 }
 function renderHomeScreenHint() {
-  var sec = el("div", {class: "section"});
-  sec.appendChild(el("h3", {}, "Add to home screen"));
-  sec.appendChild(el("div", {class: "muted"}, "iPhone: tap Share, then Add to Home Screen."));
-  sec.appendChild(el("div", {class: "muted"}, "Android: open the menu, then Add to Home screen."));
+  var sec = settingsCard("Add to home screen");
+  sec.appendChild(el("p", {class: "muted"}, "iPhone: tap Share, then Add to Home Screen."));
+  sec.appendChild(el("p", {class: "muted"}, "Android: open the menu, then Add to Home screen."));
   return sec;
 }
 
@@ -825,14 +1070,20 @@ function tick3() {
 }
 
 /* ---------- boot ---------- */
-document.getElementById("back-btn").addEventListener("click", function () { history.back(); });
+document.getElementById("back-btn").addEventListener("click", function () {
+  if (history.length > 1) history.back(); else location.hash = "#/";
+});
 document.getElementById("gear-btn").addEventListener("click", function () { location.hash = "#/settings"; });
 window.addEventListener("hashchange", function () {
   extraTimers.forEach(clearInterval);
   extraTimers = [];
   followingLatestLog = true;
   render();
+  window.scrollTo(0, 0);
 });
+// a file dropped next to the box must not replace the whole page
+window.addEventListener("dragover", function (e) { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener("drop", function (e) { if (hasFiles(e)) e.preventDefault(); });
 window.addEventListener("focus", function () { if (!signedOut) refreshState(); });
 document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible" && !signedOut) refreshState(); });
 setInterval(tick5, 5000);

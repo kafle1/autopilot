@@ -16,7 +16,7 @@ CONFIG = HOME / "config.toml"
 REPO = "kafle1/autopilot"
 PORT = 8700
 NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,49}")
-KEYS = {"schedule", "every", "keepalive", "run", "dir", "timeout", "notify", "safe", "env", "url"}
+KEYS = {"about", "schedule", "every", "keepalive", "run", "dir", "timeout", "notify", "safe", "env", "url"}
 NOTIFY = ("fail", "always", "result", "never")
 ANDROID = hasattr(sys, "getandroidapilevel") or "com.termux" in os.environ.get("PREFIX", "")
 OS = "Android" if ANDROID else {"Darwin": "macOS"}.get(platform.system(), platform.system())
@@ -163,6 +163,7 @@ class Job:
     safe: bool = False
     env: dict = field(default_factory=dict)
     url: str | None = None
+    about: str = ""
 
     @property
     def kind(self):
@@ -208,7 +209,7 @@ def parse(text, folder):
     if sum(bool(s.get(k)) for k in ("schedule", "every", "keepalive")) > 1:
         raise SpecError("use only one of schedule, every or keepalive")
     _want(s, "schedule", (str, list), "a cron line or a list of them")
-    for key in ("run", "dir", "url", "notify"):
+    for key in ("run", "dir", "url", "notify", "about"):
         _want(s, key, str, "text in quotes")
     for key in ("keepalive", "safe"):
         _want(s, key, bool, "true or false")
@@ -248,6 +249,7 @@ def parse(text, folder):
     job.safe = s.get("safe", False)
     job.env = {str(k): str(v) for k, v in s.get("env", {}).items()}
     job.url = s.get("url")
+    job.about = s.get("about", "").strip()
     return job
 
 
@@ -273,13 +275,15 @@ def slug(text, taken):
 FORMAT = """Write the file autopilot.md in exactly this format:
 
 +++
+about = "Sends me the top tech headlines every morning"
 schedule = "0 8 * * *"
 timeout = "30m"
 notify = "result"
 +++
 Instructions for the AI, written for an assistant who knows nothing else.
 
-Settings (all optional):
+Settings (all optional except about):
+- about = one short line in plain words saying what it does. The dashboard shows it, so always write it.
 - At most one trigger: schedule = a cron line in local time (or a list of cron lines), every = "30m" style, or keepalive = true for a program that must always run. No trigger means it only runs when started by hand.
 - run = "a shell command". Leave it out when the AI should do the job; then the text under the settings is what the AI gets on every run.
 - dir = the folder it works in (default: its own folder).

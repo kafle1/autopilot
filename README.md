@@ -30,19 +30,20 @@ powershell -ExecutionPolicy ByPass -c "irm https://github.com/kafle1/autopilot/r
 ```
 
 Setup runs right after install. It checks which AI tools work on your
-computer, asks if you want alerts on your phone and if you want the
-ready-made PhD fellowship finder, starts the background program so it also
-runs after every restart, and opens the dashboard.
+computer, asks if you want alerts on your phone, starts the background
+program so it also runs after every restart, and opens the dashboard.
 Your autopilots live in a folder called `autopilot` in your home folder.
 
 ## Make your first autopilot
 
 Run `autopilot open` to open the dashboard in your browser, then tap "New
-autopilot" and type what you want in plain English. Or type it straight into
+autopilot" and describe what you want in plain English. You can paste
+screenshots or add files to explain it better, and switch on "It needs its own
+dashboard" if you want a web page for it. Or type it straight into
 the terminal:
 
 ```
-autopilot new "every Monday at 8am, find new fully funded PhD fellowships abroad in computer science and send me the best five"
+autopilot new "every weekday at 8am, check the news on the companies I follow and send me a short summary"
 ```
 
 ```
@@ -99,6 +100,8 @@ instructions if you use `run` instead).
 
 Settings, all optional:
 
+- `about`: one short line saying what it does. The dashboard shows it under
+  the name. The AI writes it for you.
 - `schedule`: when to run it, as a cron line (e.g. `"0 9 * * *"` for 9am
   daily), or a list of cron lines. Times are your computer's local time.
 - `every`: run on a fixed interval instead of a schedule, e.g. `"20m"`,
@@ -128,6 +131,7 @@ An AI job that runs every morning:
 
 ```
 +++
+about = "Sums up recruiter emails every morning"
 schedule = "0 8 * * *"
 timeout = "30m"
 notify = "result"
@@ -139,6 +143,7 @@ A command job that runs on a timer:
 
 ```
 +++
+about = "Checks that example.com is up"
 every = "15m"
 run = "curl -sf https://example.com/health || exit 1"
 notify = "fail"
@@ -149,6 +154,7 @@ A keepalive service:
 
 ```
 +++
+about = "Serves my reports page"
 keepalive = true
 run = "python3 server.py"
 url = "http://127.0.0.1:8787"

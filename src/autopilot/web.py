@@ -16,6 +16,7 @@ from . import engines, runner, spec
 
 TEXT = {".md", ".txt", ".csv", ".json", ".toml"}
 MAX = 1 << 20
+UPLOAD = 36 << 20  # 25 MB of attachments once base64 grows them by a third
 MANIFEST = json.dumps({"name": "Autopilot", "short_name": "Autopilot", "start_url": "/", "display": "standalone",
                        "background_color": "#ffffff", "theme_color": "#ffffff",
                        "icons": [{"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml"}]})
@@ -71,7 +72,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
-        self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'")
+        self.send_header("Content-Security-Policy", "default-src 'self'; img-src 'self' blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'")
         for k, v in extra:
             self.send_header(k, v)
         self.end_headers()
@@ -106,7 +107,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 raise Fail(403, "wrong address")
             url = urllib.parse.urlsplit(self.path)
             q = {k: v[0] for k, v in urllib.parse.parse_qs(url.query).items()}
-            body = self.body() if method == "POST" else None
+            body = self.body(UPLOAD if self.signed_in() else MAX) if method == "POST" else None
             route = (method, url.path)
             if route == ("GET", "/"):
                 return self.reply(200, resources.files("autopilot").joinpath("ui.html").read_bytes(), "text/html")
@@ -133,12 +134,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             log(traceback.format_exc())
             self.reply(500, {"error": "autopilot hit an error, see ~/autopilot/.run/daemon.log"})
 
-    def body(self):
+    def body(self, limit):
         # the custom header forces browsers to ask first, so other sites can't post here
         if self.headers.get("X-Autopilot") != "1" or not self.headers.get("Content-Type", "").startswith("application/json"):
             raise Fail(403, "missing X-Autopilot header")
         size = int(self.headers.get("Content-Length") or 0)
-        if size > MAX + 4096:
+        if size > limit + 4096:
             raise Fail(413, "too big")
         try:
             data = json.loads(self.rfile.read(size) or b"{}")
@@ -191,7 +192,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 d.pause_all(body.get("paused"))
                 return ({"ok": True},)
             case ("POST", "/api/build"):
-                return ({"name": d.build(body.get("instruction"), body.get("name"), body.get("new_name"))},)
+                return ({"name": d.build(body.get("instruction"), body.get("name"), body.get("new_name"), body.get("files"), body.get("dashboard"))},)
             case ("POST", "/api/engines"):
                 order = body.get("order")
                 if not isinstance(order, list) or not order or len(set(order)) != len(order) or not set(order) <= set(engines.ORDER):
