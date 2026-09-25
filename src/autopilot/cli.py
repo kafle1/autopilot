@@ -55,6 +55,7 @@ def name_arg(text):
 
 
 def setup(a):
+    a.yes = a.yes or not (sys.stdin and sys.stdin.isatty())  # nobody there to answer, like an installer run by a script
     spec.ensure_home()
     cfg = spec.config()
     print("Setting up autopilot on this computer.\n")

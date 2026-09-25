@@ -8,7 +8,7 @@ REPO="kafle1/autopilot"
 echo "Setting up autopilot..."
 
 # Termux (Android) uses its own package manager, not uv.
-if [ "${PREFIX:-}" != "${PREFIX#*com.termux}" ]; then
+if [ -n "${PREFIX:-}" ] && [ "$PREFIX" != "${PREFIX#*com.termux}" ]; then
     echo "Android (Termux) detected. Android support is experimental."
 
     if [ -z "${AUTOPILOT_REF:-}" ]; then
@@ -27,7 +27,7 @@ if [ "${PREFIX:-}" != "${PREFIX#*com.termux}" ]; then
     pip install --upgrade "https://github.com/$REPO/archive/refs/tags/$TAG.tar.gz"
 
     echo ""
-    if [ -r /dev/tty ]; then
+    if (: </dev/tty) 2>/dev/null; then  # -r passes even when there is no terminal to open
         autopilot setup </dev/tty
     else
         echo "Now run: autopilot setup"
@@ -64,7 +64,7 @@ echo "Installing autopilot $TAG..."
 echo ""
 echo "autopilot is installed."
 echo ""
-if [ -r /dev/tty ]; then
+if (: </dev/tty) 2>/dev/null; then  # -r passes even when there is no terminal to open
     "$HOME/.local/bin/autopilot" setup </dev/tty
 else
     echo "Now run: autopilot setup"
