@@ -109,6 +109,14 @@ class Log:
             f.with_suffix(".log").unlink(missing_ok=True)
 
 
+def paused(name):
+    try:
+        s = json.loads((spec.RUN / "state.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return bool(s.get("paused_all")) or name in s.get("paused", [])
+
+
 def preamble(job):
     return (f"You are running unattended as the autopilot \"{job.name}\" on {platform.system()}. "
             f"Now: {dt.datetime.now():%A %d %B %Y %H:%M}. Nobody will answer questions, so decide and finish. "
@@ -122,6 +130,9 @@ def main(name, trigger):
         stop(name)
     # the daemon briefly probes this lock, so give it a moment
     if not lk.acquire(wait=1):
+        return
+    if trigger in ("schedule", "service") and paused(name):  # paused while this was starting, and the stop found no lock yet
+        lk.release()
         return
     folder = spec.HOME / name
     log = Log(folder)
@@ -169,7 +180,7 @@ def execute(job, started, log):
         md = job.folder / "autopilot.md"
         before = md.read_text(encoding="utf-8")
         try:
-            ok, engine, summary = engines.run(preamble(job) + job.prompt, job.dir, deadline, log, job.safe)
+            ok, engine, summary = engines.run(preamble(job) + job.prompt, job.dir, deadline, log, job.safe, job.env)
         finally:
             if job.safe and settings(md) != settings(before):  # a page it read could tell it to turn safe off
                 md.unlink(missing_ok=True)
@@ -196,20 +207,31 @@ def build(name, folder, started, log):
     """Let the AI write or change this autopilot from the owner's plain-English instruction."""
     instruction = (folder / ".instruction").read_text(encoding="utf-8").strip()
     md = folder / "autopilot.md"
-    change = md.exists()
-    prompt = spec.build_prompt(folder, instruction, change, engines.order(), platform.platform(terse=True), spec.ANDROID)
+    before = md.read_bytes() if md.exists() else None
+    prompt = spec.build_prompt(folder, instruction, before is not None, engines.order(), platform.platform(terse=True), spec.ANDROID)
     deadline = started + 1800
-    ok, engine, summary = engines.run(prompt, folder, deadline, log)
-    if not ok:
-        return "failed", engine, summary
+    ok = False
     try:
-        spec.load(folder)
-    except (OSError, spec.SpecError) as e:
-        log(f"== autopilot.md has a problem, asking the AI to fix it: {e}")
-        fix = prompt + f"\n\nYou already started. The file autopilot.md has this problem: {e}\nFix it, keep everything else."
-        ok, engine, summary = engines.run(fix, folder, deadline, log)
-        try:
-            spec.load(folder)
-        except (OSError, spec.SpecError) as e:
-            return "failed", engine, f"the AI could not write a working autopilot.md: {e}"
-    return ("ok" if ok else "failed"), engine, summary
+        ok, engine, summary = engines.run(prompt, folder, deadline, log)
+        if ok:
+            try:
+                spec.load(folder)
+            except (OSError, spec.SpecError) as e:
+                log(f"== autopilot.md has a problem, asking the AI to fix it: {e}")
+                fix = prompt + f"\n\nYou already started. The file autopilot.md has this problem: {e}\nFix it, keep everything else."
+                ok, engine, summary = engines.run(fix, folder, deadline, log)
+                try:
+                    spec.load(folder)
+                except (OSError, spec.SpecError) as e:
+                    ok, summary = False, f"the AI could not write a working autopilot.md: {e}"
+        needs = folder / "NEEDS.md"
+        if ok and needs.exists() and needs.stat().st_mtime >= started:
+            summary = f"{summary}\nIt needs something from you first. Open NEEDS.md in its files.".strip()
+        return ("ok" if ok else "failed"), engine, summary
+    finally:
+        if not ok:  # a failed or stopped build must not leave a half-made autopilot for the schedule to run
+            if before is None:
+                md.unlink(missing_ok=True)
+            else:
+                md.write_bytes(before)
+            log("== undid its autopilot.md changes, so nothing half-made runs")

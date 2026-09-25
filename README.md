@@ -75,6 +75,8 @@ Your phone can also run autopilots itself, not just watch them.
    Play Store version, it's out of date).
 2. Open Termux and run the same install command from the "Install" section
    above.
+3. Open the Termux:Boot app once, so autopilot starts again after the phone
+   restarts.
 
 This is not tested on a real phone yet, and the AI tools may not all run on
 Android. An iPhone cannot run background jobs at all, so an iPhone can only
@@ -118,10 +120,13 @@ Settings, all optional:
   failing and when it recovers. `"always"` alerts every run. `"result"` sends
   you the last line of what it produced, unless that line is exactly `NONE`.
   `"never"` stays quiet.
-- `safe`: set to `true` so the AI can't run commands, can only change files
-  in its own folder, and can't change its own settings. It can still read
-  your files and the web, so keep secrets somewhere it has no reason to look.
+- `safe`: set to `true` so the AI can only change files in its own folder
+  and can't change its own settings. With Claude Code it also can't run
+  commands or open files outside its folder. Codex still runs commands, but
+  in a locked-down sandbox, and can still read your other files. opencode
+  can't run safe autopilots.
 - `env`: extra environment variables for the job, as `key = "value"` pairs.
+  AI jobs get them too, except keys that would make the AI bill per use.
 - `url`: a link shown on the dashboard, for an autopilot that serves its own
   page.
 

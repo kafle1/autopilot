@@ -34,6 +34,10 @@ if ($env:AUTOPILOT_REF) {
 Write-Host "Installing autopilot $Ref..."
 
 uv tool install --force --managed-python --python 3.12 "https://github.com/$Repo/archive/refs/tags/$Ref.tar.gz"
+if ($LASTEXITCODE) {
+    Write-Host "Could not install autopilot. Check your internet connection and try again."
+    exit 1
+}
 
 Write-Host ""
 Write-Host "autopilot is installed."

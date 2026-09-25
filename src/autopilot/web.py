@@ -3,8 +3,10 @@ import hmac
 import http.cookies
 import http.server
 import json
+import os
 import re
 import secrets
+import shutil
 import threading
 import time
 import traceback
@@ -56,6 +58,7 @@ class Pairing:
 
 class Handler(http.server.BaseHTTPRequestHandler):
     server_version = "autopilot"
+    timeout = 60  # a client that opens a connection and goes quiet would hold a thread forever
     daemon = None
     pairing = Pairing()
 
@@ -129,6 +132,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.reply(200, *self.api(route, q, body))
         except Fail as e:
             self.reply(e.code, {"error": str(e)})
+        except spec.SpecError as e:
+            self.reply(500, {"error": str(e)})
         except Exception:
             from .daemon import log
             log(traceback.format_exc())
@@ -138,8 +143,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # the custom header forces browsers to ask first, so other sites can't post here
         if self.headers.get("X-Autopilot") != "1" or not self.headers.get("Content-Type", "").startswith("application/json"):
             raise Fail(403, "missing X-Autopilot header")
-        size = int(self.headers.get("Content-Length") or 0)
-        if size > limit + 4096:
+        try:
+            size = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            raise Fail(400, "bad Content-Length") from None
+        if not 0 <= size <= limit + 4096:  # a negative size would read until the client hangs up
             raise Fail(413, "too big")
         try:
             data = json.loads(self.rfile.read(size) or b"{}")
@@ -180,7 +188,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 path, text = self.resolve(body), body.get("text")
                 if path.suffix.lower() not in TEXT or not isinstance(text, str) or len(text.encode()) > MAX:
                     raise Fail(400, "only text files under 1 MB can be saved here")
-                path.write_text(text, encoding="utf-8")
+                tmp = path.with_name(f".{path.name}.tmp")  # a failed write must not leave the file cut in half
+                tmp.write_text(text, encoding="utf-8")
+                if path.exists():
+                    shutil.copymode(path, tmp)
+                os.replace(tmp, path)
                 return ({"ok": True},)
             case ("POST", "/api/save"):
                 d.save_spec(body.get("name"), body.get("text"))
@@ -241,10 +253,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 def serve(daemon):
     Handler.daemon = daemon
+    from .daemon import log
     try:
         server = http.server.ThreadingHTTPServer(("127.0.0.1", spec.port()), Handler)
-    except OSError as e:
-        daemon.problems.append(f"The dashboard can't start: port {spec.port()} is taken ({e.strerror}). Set another port in {spec.CONFIG}")
+    except OSError as e:  # nothing can show a problem while the dashboard is down, so the log is where setup looks
+        log(f"The dashboard can't start: port {spec.port()} is taken ({e.strerror}). Set another port in {spec.CONFIG}")
+        return
+    except spec.SpecError as e:
+        log(f"The dashboard can't start: {e}")
         return
     server.daemon_threads = True
     server.serve_forever()

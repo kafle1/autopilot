@@ -1,4 +1,5 @@
 """Find, test and run the AI tools, moving to the next one when a run fails."""
+import collections
 import json
 import os
 import re
@@ -37,8 +38,9 @@ def find(name):
 
 
 def order():
-    cfg = spec.config()
-    return [e for e in cfg.get("engines", ORDER) if e in ORDER]
+    """The installed AI tools, owner's order first. One installed after setup still works as a backup."""
+    saved = [e for e in spec.config().get("engines", ORDER) if e in ORDER]
+    return [e for e in saved + [e for e in ORDER if e not in saved] if find(e)]
 
 
 def online(deadline):
@@ -82,7 +84,17 @@ def _codex_api_key():
         return False
 
 
-def attempt(name, prompt, cwd, deadline, out, safe=False):
+def _claude_api_key():
+    try:
+        r = subprocess.run([find("claude"), "auth", "status", "--json"], capture_output=True, text=True, timeout=30, env=env())
+        s = json.loads(r.stdout)
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return False
+    # only a claude.ai plan has a subscription type, so a console key, bedrock or vertex all count as paid
+    return bool(s.get("loggedIn")) and (bool(s.get("apiKeySource")) or not s.get("subscriptionType"))
+
+
+def attempt(name, prompt, cwd, deadline, out, safe=False, extra=None):
     """One try with one engine. Returns (ok, summary)."""
     exe = find(name)
     if not exe:
@@ -90,12 +102,15 @@ def attempt(name, prompt, cwd, deadline, out, safe=False):
     cfg = spec.config()
     model = cfg.get("models", {}).get(name)
     flags = list(cfg.get("engine_args", {}).get(name, [])) + ([MODEL_FLAG[name], model] if model else [])
-    e = env()
-    result, lines, tmp, on_line = {}, [], None, None
+    e = env({k: v for k, v in (extra or {}).items() if not SCRUB.match(k)})  # a job's own settings can't bring a paid key back
+    result, lines, tmp, on_line = {}, collections.deque(maxlen=200), None, None
     if name == "claude":
+        if _claude_api_key():
+            return False, "claude is not logged in with a Claude plan, so it would bill per use. Run claude, then type /login and pick your subscription"
         cmd = [exe, "-p", "--output-format", "stream-json", "--verbose", "--add-dir", str(cwd)] + flags
-        cmd += ["--permission-mode", "acceptEdits", "--allowedTools", "Read,Edit,Write,Glob,Grep,WebSearch,WebFetch"] if safe \
-            else ["--dangerously-skip-permissions"]
+        # restricted drops the shell and keeps file tools inside the folder, the prompt goes on stdin because --tools eats what follows
+        cmd += ["--permission-mode", "acceptEdits", "--restricted", "--strict-mcp-config",
+                "--tools", "Read,Edit,Write,Glob,Grep,WebSearch,WebFetch"] if safe else ["--dangerously-skip-permissions"]
         e["CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS"] = "0"  # don't sit waiting on background shells after the answer
         on_line = lambda s: _render_claude(s, out, result)
     elif name == "codex":
@@ -146,7 +161,7 @@ def attempt(name, prompt, cwd, deadline, out, safe=False):
             Path(tmp).unlink(missing_ok=True)
 
 
-def run(prompt, cwd, deadline, out, safe=False):
+def run(prompt, cwd, deadline, out, safe=False, extra=None):
     """Try each engine in the saved order until one succeeds. Returns (ok, engine, summary)."""
     names = order()
     if not names:
@@ -155,10 +170,10 @@ def run(prompt, cwd, deadline, out, safe=False):
         out("== no internet for 10 minutes, trying anyway")
     last = (False, None, "not enough time left to try")
     for name in names:
-        if deadline - time.time() < 60:
+        if name != names[0] and deadline - time.time() < 60:  # a short timeout still gets its first try
             break
         out(f"== trying {name}")
-        ok, summary = attempt(name, prompt, cwd, deadline, out, safe)
+        ok, summary = attempt(name, prompt, cwd, deadline, out, safe, extra)
         if ok:
             return True, name, summary
         out(f"== {name} failed: {summary}")

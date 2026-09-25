@@ -6,6 +6,7 @@ import re
 import platform
 import secrets
 import sys
+import threading
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,6 +39,8 @@ def config():
         return tomllib.loads(CONFIG.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return {}
+    except tomllib.TOMLDecodeError as e:
+        raise SpecError(f"{CONFIG} has a mistake: {e}. Fix it, or delete it and run: autopilot setup") from None
 
 
 def save_config(cfg):
@@ -46,7 +49,7 @@ def save_config(cfg):
     for k, table in cfg.items():
         if isinstance(table, dict):
             flat += ["", f"[{k}]"] + [f"{kk} = {_toml(vv)}" for kk, vv in table.items()]
-    tmp = CONFIG.with_suffix(".tmp")
+    tmp = CONFIG.with_suffix(f".{os.getpid()}.{threading.get_ident()}.tmp")  # two writers at once must not share one file
     tmp.write_text("\n".join(flat) + "\n", encoding="utf-8")
     if os.name != "nt":
         tmp.chmod(0o600)
@@ -126,7 +129,7 @@ class Cron:
         except ValueError:
             raise SpecError(f"can't read the schedule {text!r}") from None
         self.dow = {d % 7 for d in dow}
-        self.any_day = "*" in (parts[2], parts[4])
+        self.any_day = parts[2].startswith("*") or parts[4].startswith("*")  # cron treats */2 like * here
         self.next(dt.datetime(2001, 1, 1))  # raises when it never happens
 
     def _day_ok(self, t):
@@ -184,7 +187,9 @@ class Job:
             t = dt.datetime.fromtimestamp(epoch)
             while True:  # when clocks go back an hour happens twice, so take the first time still ahead
                 t = min(c.next(t) for c in self.crons)
-                ahead = [s for s in (t.timestamp(), t.replace(fold=1).timestamp()) if s > epoch]
+                stamps = {t.timestamp(), t.replace(fold=1).timestamp()}
+                real = [s for s in stamps if dt.datetime.fromtimestamp(s) == t] or [max(stamps)]  # a skipped time runs an hour later
+                ahead = [s for s in real if s > epoch]
                 if ahead:
                     return min(ahead)
         return None

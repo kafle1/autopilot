@@ -12,7 +12,7 @@ import traceback
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import engines, proc, runner, spec, web
+from . import engines, notify, proc, runner, spec, web
 
 TICK = 5
 ATTACH_MAX = 25 << 20
@@ -21,7 +21,8 @@ DASHBOARD = ("The owner wants their own web page for it, to see what it did and 
              "127.0.0.1 on a free port with an always-on program and put its address in url. If this autopilot itself runs on "
              "a schedule, keep it that way and add a second autopilot in a new folder next to this one, named like {name}-dashboard "
              "(at most 50 lowercase letters, digits and dashes, and not a folder that exists). Give it keepalive = true and "
-             "run = the command that serves the page, make the page show the files this one writes, and put the same url in both.")
+             "run = the command that serves the page, make the page show the files this one writes, and put the same url in both. "
+             "Write that folder's autopilot.md last, once this one works, because it starts running the moment it exists.")
 
 
 def log(text):
@@ -42,7 +43,6 @@ class Daemon:
         self.jobs = {}
         self.gone = set()  # being deleted, so nothing starts them again
         self.backoff = {}
-        self.problems = []
         self.beat = time.time()
         try:
             s = json.loads(STATE.read_text(encoding="utf-8"))
@@ -74,6 +74,8 @@ class Daemon:
                 seen[d.name] = Entry(mtime, spec.load(d))
             except (OSError, UnicodeDecodeError, spec.SpecError) as e:
                 seen[d.name] = Entry(mtime, old.job if old else None, str(e))
+                if not (old and old.error == str(e)) and (runner.lock(d.name).held() or {}).get("trigger") != "build":
+                    threading.Thread(target=notify.send, args=(f"{d.name} is broken", str(e)), daemon=True).start()  # its runs stop working, so say it once
         self.jobs = seen
 
     def tick(self):
@@ -96,8 +98,8 @@ class Daemon:
                 if slot is None:  # a new schedule counts from now, so it doesn't fire for times already past
                     self.slot[name] = now
                     self.save()
-                elif e.job.next_after(slot) <= now:  # missed runs while asleep fold into one catch-up
-                    if info is None and not paused:
+                elif e.job.next_after(slot) <= now and info is None:  # missed runs while asleep or busy fold into one catch-up
+                    if not paused:
                         runner.start(name, "schedule")
                     self.slot[name] = now
                     self.save()
@@ -144,9 +146,9 @@ class Daemon:
             return {
                 "device": {"name": platform.node().removesuffix(".local"), "os": spec.OS,
                            "remote_url": f"https://{host}" if host else None, "paused_all": self.paused_all,
-                           "problems": self.problems + ([] if any(engines.find(n) for n in engines.ORDER) else
-                                                        ["No AI tool is installed. Install Claude Code, Codex or opencode, then run: autopilot setup"])},
-                "engines": [{"name": n, "found": bool(engines.find(n))} for n in names + [n for n in engines.ORDER if n not in names]],
+                           "problems": [] if names else
+                                        ["No AI tool is installed. Install Claude Code, Codex or opencode, then run: autopilot setup"]},
+                "engines": [{"name": n, "found": n in names} for n in names + [n for n in engines.ORDER if n not in names]],
                 "alerts": {"subscribe_url": f"https://ntfy.sh/{cfg['ntfy_topic']}" if cfg.get("ntfy_topic") else None},
                 "jobs": jobs,
             }
@@ -218,6 +220,8 @@ class Daemon:
         with self.mu:
             if name:
                 folder = self.folder(name)
+                if (runner.lock(name).held() or {}).get("trigger") == "build":  # a second change would overwrite the first one's instruction
+                    raise web.Fail(409, "it is still being changed. Wait for that to finish, then try again")
             else:
                 taken = {d.name for d in spec.HOME.iterdir()}
                 if new_name is None:
@@ -235,7 +239,10 @@ class Daemon:
                 saved = save_attachments(folder / "context", files)
                 note = "\n\nThe owner attached these files for reference. Open and look at each one first:\n" + "\n".join(saved) if saved else ""
                 page = "\n\n" + DASHBOARD.format(name=name) if dashboard else ""
-                (folder / ".instruction").write_text(instruction.strip() + page + note + "\n", encoding="utf-8")
+                text = instruction.strip() + page + note
+                if not new and not (folder / "autopilot.md").exists():  # its first build failed, so "try again" must keep the first request
+                    text = (folder / ".instruction").read_text(encoding="utf-8").strip() + "\n\nThe owner then added:\n" + text
+                (folder / ".instruction").write_text(text + "\n", encoding="utf-8")
             except OSError as e:
                 if new:  # don't leave a half-made autopilot behind
                     shutil.rmtree(folder, ignore_errors=True)

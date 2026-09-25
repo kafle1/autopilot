@@ -44,6 +44,7 @@ def install():
         _stop_loop()
         stop_daemon()
         proc.spawn(["sh", str(BOOT)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print("Open the Termux:Boot app once, or autopilot won't start again after the phone restarts.")
     elif sys.platform == "darwin":
         PLIST.parent.mkdir(parents=True, exist_ok=True)
         log = str(spec.RUN / "daemon.log")
@@ -98,7 +99,9 @@ def install():
         _run(["systemctl", "--user", "enable", "autopilot"])
         _run(["systemctl", "--user", "restart", "autopilot"])
         # without linger, jobs stop when the owner logs out
-        _run(["loginctl", "enable-linger", os.environ.get("USER", "")], check=False)
+        user = os.environ.get("USER", "")
+        if _run(["loginctl", "enable-linger", user], check=False).returncode:
+            print(f"Autopilots stop when you log out. To keep them running, run: sudo loginctl enable-linger {user}")
 
 
 def _stop_loop():

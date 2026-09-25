@@ -102,7 +102,11 @@ def setup(a):
         except Down:
             time.sleep(0.5)
     else:
-        sys.exit(f"The background program did not start. Its log is {spec.RUN / 'daemon.log'}")
+        try:
+            tail = (spec.RUN / "daemon.log").read_text(encoding="utf-8", errors="replace").splitlines()[-5:]
+        except OSError:
+            tail = []
+        sys.exit("\n".join([f"The background program did not start. The end of {spec.RUN / 'daemon.log'} says:", *tail]))
     print("It runs now, and starts by itself with the computer.\n")
     if not a.yes:
         print('Make your first autopilot from the dashboard, or type:\n  autopilot new "every morning, find ... and send me the best ones"\n')
@@ -278,11 +282,12 @@ def update(a):
         service.stop_daemon()
         stop_all()
         log = spec.RUN / "update.log"
-        script = spec.RUN / "update.cmd"
-        script.write_text("\r\n".join(["@echo off", "ping -n 4 127.0.0.1 >nul",  # timeout /t fails without a keyboard
-                                       f'{subprocess.list2cmdline(cmd)} > "{log}" 2>&1',
-                                       f'{subprocess.list2cmdline(after)} >> "{log}" 2>&1', ""]), encoding="utf-8")
-        proc.spawn(["cmd", "/c", str(script)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        code = ("import json, subprocess, sys, time\ntime.sleep(3)\nwith open(sys.argv[1], 'wb') as f:\n"
+                "    for c in sys.argv[2:]:\n        subprocess.run(json.loads(c), stdout=f, stderr=f)\n")
+        # the base python lives outside the folder uv replaces, and unlike a batch file it keeps an accent or & in a path intact
+        env = {k: v for k, v in os.environ.items() if k != "__PYVENV_LAUNCHER__"}
+        proc.spawn([sys._base_executable, "-I", "-c", code, str(log), json.dumps(cmd), json.dumps(after)],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
         print(f"It finishes in the background in about a minute. If something goes wrong, see {log}")
         return
     if subprocess.run(cmd).returncode or subprocess.run(after).returncode:
@@ -340,7 +345,7 @@ def main():
     s.add_argument("prompt_file")
     s.add_argument("--dir", default=".")
     s.add_argument("--timeout", default="1h")
-    s.add_argument("--safe", action="store_true", help="no shell commands, and edits only in --dir")
+    s.add_argument("--safe", action="store_true", help="the AI can only change files in --dir")
     s.set_defaults(fn=ai)
     s = sub.add_parser("phone", help="use the dashboard from your phone, through Tailscale")
     s.add_argument("--off", action="store_true", help="turn phone access off and sign out every browser")
@@ -355,7 +360,7 @@ def main():
         a.fn = open_ if spec.CONFIG.exists() else setup
     try:
         a.fn(a)
-    except Down as e:
+    except (Down, spec.SpecError) as e:
         sys.exit(str(e))
     except KeyboardInterrupt:
         sys.exit(130)

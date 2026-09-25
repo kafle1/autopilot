@@ -109,7 +109,7 @@ def run(cmd, deadline, on_line, stdin=None, **kw):
     killed = threading.Event()
 
     def pump():
-        for raw in iter(p.stdout.readline, b""):
+        for raw in iter(lambda: p.stdout.readline(16 << 20), b""):  # one endless line must not eat all the memory
             if on_line(clean(raw).rstrip(b"\n").decode("utf-8", "replace")) and not killed.is_set():
                 killed.set()
                 threading.Thread(target=kill_tree, args=(p.pid, 5, p), daemon=True).start()
@@ -126,10 +126,13 @@ def run(cmd, deadline, on_line, stdin=None, **kw):
         threads.append(threading.Thread(target=feed, daemon=True))
     for t in threads:
         t.start()
+    code = None
     try:
-        code = p.wait(timeout=max(1, deadline - time.time()))
-    except subprocess.TimeoutExpired:
-        code = None
+        while code is None and time.time() < deadline:
+            try:
+                code = p.wait(timeout=min(max(0, deadline - time.time()), 86400))  # windows can't wait 49 days or more in one go
+            except subprocess.TimeoutExpired:
+                pass
     finally:
         if p.poll() is None:
             kill_tree(p.pid, 5, p)
