@@ -299,7 +299,10 @@ def stop_all():
 
 
 def uninstall(a):
-    service.uninstall()
+    try:
+        service.uninstall()
+    except (RuntimeError, OSError, subprocess.SubprocessError) as e:
+        sys.exit(f"Could not remove it: {e}")
     stop_all()
     print(f"The background program is removed and nothing runs anymore. Your autopilots are still in {spec.HOME}.\n"
           "To remove the autopilot command too: uv tool uninstall autopilot")

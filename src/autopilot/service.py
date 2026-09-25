@@ -149,7 +149,8 @@ def uninstall():
         _run(["schtasks", "/End", "/TN", TASK], check=False)
         _run(["schtasks", "/Delete", "/TN", TASK, "/F"], check=False)
     else:
-        _run(["systemctl", "--user", "disable", "--now", "autopilot"], check=False)
+        if UNIT.exists():  # if systemd can't be reached, killing the daemon below only makes systemd restart it
+            _run(["systemctl", "--user", "disable", "--now", "autopilot"])
         UNIT.unlink(missing_ok=True)
         _run(["systemctl", "--user", "daemon-reload"], check=False)
     stop_daemon()
