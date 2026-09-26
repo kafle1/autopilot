@@ -256,9 +256,8 @@ def doctor(a):
 
 
 def update(a):
-    try:  # the api allows 60 calls an hour per address, which a shared connection runs out of; this redirect has no limit
-        with urllib.request.urlopen(urllib.request.Request(f"https://github.com/{spec.REPO}/releases/latest", method="HEAD"), timeout=30) as r:
-            tag = r.url.partition("/releases/tag/")[2]
+    try:
+        tag = spec.latest()
     except OSError as e:
         sys.exit(f"Could not check for updates: {e}")
     if not tag:

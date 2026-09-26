@@ -54,6 +54,10 @@ The AI takes a minute or two to build it, then it switches itself on. If it
 needs something only you can give, like a login, it writes what it needs in
 a file called `NEEDS.md`, which you can open from the dashboard.
 
+Each autopilot's page shows everything you asked for, the first request and
+every change after it. If a build fails or you stop it, tap "Try again". The
+AI reads why the last try failed and carries on from there.
+
 ## Use it from your phone
 
 1. Install Tailscale (it's free) on your computer and on your phone.
@@ -92,6 +96,17 @@ open the dashboard and control a computer, never run autopilots itself.
   read the web, not run commands.
 - Keep passwords and other secrets out of your instructions. Put them in
   `env` instead (see below).
+- When a script autopilot fails, the AI looks at the error, fixes the script,
+  and runs it once more. It does this at most once every 6 hours per
+  autopilot. If the fix needs you, it writes `NEEDS.md` and alerts you. To
+  turn this off, add `auto_fix = false` to `~/autopilot/config.toml`.
+- An autopilot the AI runs each time keeps notes in `MEMORY.md` in its
+  folder, so each run knows what the last ones did and saw.
+- autopilot updates itself. It checks for a new version every 6 hours and
+  installs it when nothing is running. The dashboard shows when an update is
+  ready, with an "Update now" button. To turn this off, add
+  `auto_update = false` to `~/autopilot/config.toml`. Installs from before
+  version 0.2.0 need one `autopilot update` by hand to get this.
 
 ## The autopilot.md file
 

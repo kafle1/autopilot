@@ -87,7 +87,7 @@ a{color:var(--accent);}
 .pill-ok{background:var(--ok-bg);color:var(--ok);}
 .pill-failed{background:var(--bad-bg);color:var(--bad);}
 .pill-broken{background:var(--warn-bg);color:var(--warn);}
-.pill-building{background:var(--purple-bg);color:var(--purple);}
+.pill-building,.pill-fixing{background:var(--purple-bg);color:var(--purple);}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
 @media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important;}}
 
@@ -127,6 +127,10 @@ a{color:var(--accent);}
 .meta-value{font-size:14.5px;font-weight:600;margin-top:2px;overflow-wrap:anywhere;}
 .summary-box,.error-box{margin-top:12px;padding:12px 14px;border-radius:12px;font-size:14.5px;white-space:pre-wrap;overflow-wrap:anywhere;}
 .summary-box{background:var(--accent-soft);}
+.asked-item+.asked-item{margin-top:14px;}
+.asked-when{font-size:12.5px;color:var(--faint);margin-bottom:4px;}
+.asked-text{background:var(--surface-2);border-radius:12px;padding:12px 14px;font-size:14.5px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto;}
+.notice .btn{margin-top:10px;}
 .error-box{background:var(--bad-bg);color:var(--bad);}
 .hero .action-row{margin-top:18px;}
 .delete-confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%;padding:12px;border-radius:12px;background:var(--bad-bg);}
@@ -380,8 +384,17 @@ function render() {
   else if (r.page === "settings") renderSettingsPage(root);
 }
 
+// a new version of the page is waiting, but never throw away something being typed
+function typing() {
+  return [].some.call(document.querySelectorAll("textarea, input[type=text]"), function (t) { return t.value !== t.defaultValue; }) ||
+    !!document.querySelector(".attach-item, .file-editor:not(.hidden), .delete-confirm");
+}
+var pageVersion = null;
 async function refreshState() {
   try { state = await api("/api/state"); } catch (e) { return; }
+  var v = state.device && state.device.version;
+  if (pageVersion && v && v !== pageVersion && !typing()) { location.reload(); return; }
+  if (!pageVersion) pageVersion = v;
   var r = parseRoute();
   if (r.page === "home") render();
   else if (r.page === "job") refreshJobTop();
@@ -438,11 +451,11 @@ function renderSignIn() {
 }
 
 /* ---------- job status pill + sorting ---------- */
-var LABELS = {running: "Running", ok: "All good", failed: "Failed", broken: "Needs a fix", paused: "Paused", idle: "Waiting", building: "Building"};
-function statusOf(job) { return job.building ? "building" : (job.status || "idle"); }
+var LABELS = {running: "Running", ok: "All good", failed: "Failed", broken: "Needs a fix", paused: "Paused", idle: "Waiting", building: "Building", fixing: "Fixing itself"};
+function statusOf(job) { return job.fixing ? "fixing" : job.building ? "building" : (job.status || "idle"); }
 function statusPill(job) {
   var s = statusOf(job);
-  return el("span", {class: "pill pill-" + s + (s === "running" || s === "building" ? " live" : "")}, LABELS[s] || s);
+  return el("span", {class: "pill pill-" + s + (s === "running" || s === "building" || s === "fixing" ? " live" : "")}, LABELS[s] || s);
 }
 function jobRank(job) {
   if (job.status === "failed" || job.status === "broken") return 0;
@@ -472,6 +485,7 @@ function actionButton(label, name, action, cls) {
   return btn;
 }
 function primaryActionButton(job, cls) {
+  if (job.unbuilt && !job.building) return actionButton("Try again", job.name, "run", cls);
   return job.kind === "service" ? actionButton("Restart", job.name, "restart", cls) : actionButton("Run now", job.name, "run", cls);
 }
 function pauseResumeButton(job, cls) {
@@ -488,7 +502,7 @@ function stat(n, label, cls) {
 function renderHome(root) {
   var jobs = state.jobs.slice().sort(sortJobs);
   var count = function (s) { return jobs.filter(function (j) { return statusOf(j) === s; }).length; };
-  var live = count("running") + count("building"), bad = count("failed") + count("broken"), paused = count("paused");
+  var live = count("running") + count("building") + count("fixing"), bad = count("failed") + count("broken"), paused = count("paused");
   var stats = el("div", {class: "stats"});
   if (jobs.length) {
     stats.appendChild(stat(jobs.length - live - bad - paused, "all good", "stat-ok"));
@@ -513,6 +527,8 @@ function renderHome(root) {
 
   if (state.device.paused_all) root.appendChild(el("div", {class: "notice"}, "Everything is paused. Nothing runs until you tap Resume all."));
   (state.device.problems || []).forEach(function (p) { root.appendChild(el("div", {class: "notice"}, p)); });
+  var up = updateNotice();
+  if (up) root.appendChild(up);
 
   if (!jobs.length) {
     root.appendChild(el("div", {class: "card empty-state"},
@@ -601,12 +617,14 @@ function renderJobTop(job) {
     meta.appendChild(metaItem("Last run", "Never yet"));
   }
   box.appendChild(meta);
-  if (job.last && job.last.summary) box.appendChild(el("div", {class: "summary-box"}, job.last.summary));
+  if (job.last && job.last.summary && job.last.summary !== job.error) box.appendChild(el("div", {class: "summary-box"}, job.last.summary));
+  if (job.unbuilt && !job.building) box.appendChild(el("p", {class: "muted", style: "margin-top:12px"}, "The AI never finished building it. Tap Try again and it picks up where it stopped."));
   if (job.error) box.appendChild(el("div", {class: "error-box"}, job.error));
 
   var row = el("div", {class: "action-row"});
   row.appendChild(primaryActionButton(job, "btn btn-primary"));
-  if (job.status === "running") row.appendChild(actionButton("Stop", job.name, "stop"));
+  // a stopped service comes straight back, so it gets Pause and Restart instead, except while it is being built
+  if (job.status === "running" && (job.kind !== "service" || job.building)) row.appendChild(actionButton("Stop", job.name, "stop"));
   row.appendChild(pauseResumeButton(job));
   var link = openLinkButton(job, "btn");
   if (link) row.appendChild(link);
@@ -630,8 +648,8 @@ function showDeleteConfirm(name, row, delBtn) {
     try {
       await api("/api/action", {method: "POST", body: JSON.stringify({name: name, action: "delete"})});
       toast("Deleted " + name);
-      location.hash = "#/";
       await refreshState();
+      location.hash = "#/";
     } catch (err) {
       showError(err);
       confirmBtn.disabled = false;
@@ -665,6 +683,7 @@ async function loadJobDetail(name, container, quiet) {
 }
 function renderJobSections(name, data) {
   var wrap = document.createDocumentFragment();
+  if (data.asked && data.asked.length) wrap.appendChild(renderAskedSection(data.asked));
 
   var logSec = el("div", {class: "card section"});
   var runSelect = el("select", {class: "run-select", "aria-label": "Pick a run"});
@@ -807,14 +826,24 @@ function renderBuildSection(name) {
   return sec;
 }
 
-function fold(title, key, count) {
+function fold(title, key, count, openAtFirst) {
   var d = el("details", {class: "card section fold"});
-  d.open = !!openFolds[key];
+  d.open = key in openFolds ? openFolds[key] : !!openAtFirst;
   d.addEventListener("toggle", function () { openFolds[key] = d.open; });
   d.appendChild(el("summary", {}, el("span", {}, title, count === undefined ? null : el("span", {class: "count"}, "  " + count))));
   var body = el("div", {class: "fold-body"});
   d.appendChild(body);
   return {el: d, body: body};
+}
+
+function renderAskedSection(asked) {
+  var f = fold("What you asked for", "asked", asked.length > 1 ? asked.length : undefined, true);
+  asked.forEach(function (a, i) {
+    var when = (i === 0 ? "First ask" : "Change") + (a.at ? ", " + fmtExact(a.at) : "");
+    if (a.files && a.files.length) when += ", with " + a.files.join(", ");
+    f.body.appendChild(el("div", {class: "asked-item"}, el("div", {class: "asked-when"}, when), el("div", {class: "asked-text"}, a.text)));
+  });
+  return f.el;
 }
 
 function renderFilesSection(name, files) {
@@ -947,8 +976,42 @@ function renderNewPage(root) {
 }
 
 /* ---------- settings ---------- */
+/* ---------- updates ---------- */
+function updateButton(cls) {
+  var btn = el("button", {class: cls}, "Update now");
+  btn.addEventListener("click", async function () {
+    btn.disabled = true;
+    try {
+      await api("/api/update", {method: "POST", body: JSON.stringify({})});
+      toast("Updating. The page comes back in about a minute.");
+      await refreshState();
+    } catch (err) { showError(err); btn.disabled = false; }
+  });
+  return btn;
+}
+function updateNotice() {
+  var d = state.device;
+  if (d.updating) return el("div", {class: "notice"}, "Updating Autopilot now. This page comes back in about a minute.");
+  if (!d.update) return null;
+  var how = d.auto_update ? "It installs itself when nothing is running, or you can do it now." : "Automatic updates are off, so tap Update now to get it.";
+  return el("div", {class: "notice"}, el("div", {}, "A new version of Autopilot is ready (" + d.update + "). " + how), updateButton("btn btn-sm btn-primary"));
+}
+function renderUpdatesSection() {
+  var d = state.device;
+  var sec = settingsCard("Updates", d.auto_update ? "Autopilot checks for a new version every few hours and installs it by itself when nothing is running."
+    : "Autopilot checks for a new version every few hours. Automatic updates are off, because config.toml has auto_update = false.");
+  sec.appendChild(el("p", {class: "muted"}, "This computer has version " + (d.version || "unknown") + "."));
+  if (d.updating) sec.appendChild(el("p", {class: "muted"}, "Updating now. This page comes back in about a minute."));
+  else if (d.update) {
+    sec.appendChild(el("p", {class: "muted"}, "Version " + d.update + " is ready."));
+    sec.appendChild(updateButton("btn btn-primary"));
+  } else sec.appendChild(el("p", {class: "muted"}, "It is up to date."));
+  return sec;
+}
+
 function renderSettingsPage(root) {
   var page = el("div", {class: "narrow"});
+  page.appendChild(renderUpdatesSection());
   page.appendChild(renderEnginesSection());
   page.appendChild(renderPhoneSection());
   page.appendChild(renderAlertsSection());
@@ -1091,7 +1154,7 @@ setInterval(tick3, 3000);
 
 (async function boot() {
   render();
-  try { state = await api("/api/state"); } catch (e) {}
+  try { state = await api("/api/state"); pageVersion = state.device.version; } catch (e) {}
   render();
 })();
 </script>

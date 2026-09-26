@@ -12,9 +12,10 @@ import traceback
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import engines, notify, proc, runner, spec, web
+from . import __version__, engines, notify, proc, runner, spec, web
 
 TICK = 5
+CHECK = 6 * 3600
 ATTACH_MAX = 25 << 20
 STATE = spec.RUN / "state.json"
 DASHBOARD = ("The owner wants their own web page for it, to see what it did and control it. Serve a small, clean page from "
@@ -42,8 +43,10 @@ class Daemon:
         self.mu = threading.RLock()
         self.jobs = {}
         self.gone = set()  # being deleted, so nothing starts them again
+        self.asked = {}  # when each one last got a change request
         self.backoff = {}
         self.beat = time.time()
+        self.update, self.updating = None, 0  # the newer version, and when installing it started
         try:
             s = json.loads(STATE.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -60,6 +63,8 @@ class Daemon:
         for d in spec.HOME.iterdir():
             if not d.is_dir() or not spec.NAME.fullmatch(d.name):
                 continue
+            if (d / runner.BACKUP).exists() and runner.lock(d.name).held() is None:
+                runner.recover(d)
             try:
                 mtime = (d / "autopilot.md").stat().st_mtime_ns
             except OSError:
@@ -74,9 +79,15 @@ class Daemon:
                 seen[d.name] = Entry(mtime, spec.load(d))
             except (OSError, UnicodeDecodeError, spec.SpecError) as e:
                 seen[d.name] = Entry(mtime, old.job if old else None, str(e))
-                if not (old and old.error == str(e)) and (runner.lock(d.name).held() or {}).get("trigger") != "build":
+                if not (old and old.error == str(e)) and (runner.lock(d.name).held() or {}).get("trigger") not in runner.AI:
                     threading.Thread(target=notify.send, args=(f"{d.name} is broken", str(e)), daemon=True).start()  # its runs stop working, so say it once
         self.jobs = seen
+        stale = [n for n in set(self.slot) | self.paused if not (spec.HOME / n).is_dir()]  # deleted by hand, so a new one with its name starts fresh
+        if stale:
+            for n in stale:
+                self.slot.pop(n, None)
+                self.paused.discard(n)
+            self.save()
 
     def tick(self):
         now = time.time()
@@ -86,7 +97,7 @@ class Daemon:
                 if name in self.gone or not e.job:
                     continue
                 info = runner.lock(name).held()
-                if info is not None and info.get("trigger") == "build":
+                if info is not None and info.get("trigger") in runner.AI:
                     continue
                 paused = self.paused_all or name in self.paused
                 if e.job.keepalive:
@@ -133,19 +144,23 @@ class Daemon:
                 last = (runner.runs(name, 1) or [None])[0]
                 job, paused = e.job, name in self.paused or self.paused_all
                 error = e.error or (None if job or info is not None else (last or {}).get("summary") or "autopilot.md is missing")
+                about = job.about if job and job.about else next((r["text"] for r in runner.asked(spec.HOME / name)), "").strip().split("\n")[0][:300]
                 status = ("running" if info is not None else "paused" if paused else "broken" if error
                           else {"ok": "ok", "failed": "failed", "timeout": "failed"}.get((last or {}).get("status"), "idle"))
                 jobs.append({"name": name, "kind": job.kind if job else "ai", "status": status,
-                             "building": bool(info) and info.get("trigger") == "build",
+                             "building": bool(info) and info.get("trigger") in runner.AI, "unbuilt": not e.mtime,
+                             "fixing": bool(info) and info.get("trigger") == "heal",
                              "trigger": job.trigger if job else "by hand", "next": self.next_run(name, job) if job else None,
                              "running_since": (info or {}).get("started"), "last": last, "error": error,
-                             "url": job.url if job else None, "about": job.about if job else "", "paused": name in self.paused})
+                             "url": job.url if job else None, "about": about, "paused": name in self.paused})
             cfg = spec.config()
             names = engines.order()
             host = cfg.get("remote_host")
             return {
                 "device": {"name": platform.node().removesuffix(".local"), "os": spec.OS,
                            "remote_url": f"https://{host}" if host else None, "paused_all": self.paused_all,
+                           "version": __version__, "update": self.update, "updating": time.time() - self.updating < 600,
+                           "auto_update": cfg.get("auto_update", True) is not False,
                            "problems": [] if names else
                                         ["No AI tool is installed. Install Claude Code, Codex or opencode, then run: autopilot setup"]},
                 "engines": [{"name": n, "found": n in names} for n in names + [n for n in engines.ORDER if n not in names]],
@@ -164,14 +179,23 @@ class Daemon:
         if what == "run":
             if runner.lock(name).held() is not None:
                 raise web.Fail(409, "it is already running")
+            if not job and not self.jobs[name].mtime:  # its build failed or was stopped, so try the build again
+                runner.start(name, "build")
+                return
             if not job:
                 raise web.Fail(400, self.jobs[name].error or "it has no autopilot.md yet")
+            if job.keepalive and (self.paused_all or name in self.paused):
+                raise web.Fail(409, "it is paused. Tap Resume to start it again")
             runner.start(name, "service" if job.keepalive else "manual")
-        elif what in ("stop", "restart"):
+        elif what == "stop":
             runner.stop(name)
             with self.mu:
+                self.backoff.pop(name, None)
+        elif what == "restart":
+            halt(name)
+            with self.mu:
                 self.backoff.pop(name, None)  # a service comes back on the next tick
-            if what == "restart" and job and not job.keepalive:
+            if job and not job.keepalive:
                 runner.start(name, "manual")
         elif what in ("pause", "resume"):
             with self.mu:
@@ -179,20 +203,21 @@ class Daemon:
                 self.backoff.pop(name, None)
                 self.save()
             if what == "pause":
-                runner.stop(name)
+                halt(name)
         elif what == "delete":
             with self.mu:
                 self.gone.add(name)
             runner.stop(name)
             try:
                 shutil.rmtree(folder)
-            finally:
                 with self.mu:
-                    self.gone.discard(name)
                     self.slot.pop(name, None)
                     self.paused.discard(name)
                     self.jobs.pop(name, None)
                     self.save()
+            finally:
+                with self.mu:  # a delete that failed halfway leaves it as it was, paused or not
+                    self.gone.discard(name)
         else:
             raise web.Fail(400, f"unknown action {what!r}")
 
@@ -202,7 +227,7 @@ class Daemon:
             self.save()
             names = list(self.jobs)
         if paused:
-            stops = [threading.Thread(target=runner.stop, args=(n,)) for n in names]
+            stops = [threading.Thread(target=halt, args=(n,)) for n in names]
             for t in stops:
                 t.start()
             for t in stops:
@@ -220,7 +245,8 @@ class Daemon:
         with self.mu:
             if name:
                 folder = self.folder(name)
-                if (runner.lock(name).held() or {}).get("trigger") == "build":  # a second change would overwrite the first one's instruction
+                # a second change would overwrite the first one's instruction, even in the second before its build takes the lock
+                if (runner.lock(name).held() or {}).get("trigger") in runner.AI or time.time() - self.asked.get(name, 0) < 5:
                     raise web.Fail(409, "it is still being changed. Wait for that to finish, then try again")
             else:
                 taken = {d.name for d in spec.HOME.iterdir()}
@@ -240,16 +266,34 @@ class Daemon:
                 note = "\n\nThe owner attached these files for reference. Open and look at each one first:\n" + "\n".join(saved) if saved else ""
                 page = "\n\n" + DASHBOARD.format(name=name) if dashboard else ""
                 text = instruction.strip() + page + note
-                if not new and not (folder / "autopilot.md").exists():  # its first build failed, so "try again" must keep the first request
+                if not new and not (folder / "autopilot.md").exists() and (folder / ".instruction").exists():  # its first build failed, so "try again" must keep the first request
                     text = (folder / ".instruction").read_text(encoding="utf-8").strip() + "\n\nThe owner then added:\n" + text
+                seed = [] if (folder / ".requests").exists() else runner.asked(folder)  # one built before .requests keeps its first ask
                 (folder / ".instruction").write_text(text + "\n", encoding="utf-8")
+                with open(folder / ".requests", "a", encoding="utf-8") as f:  # .instruction only keeps the newest, the owner wants to see them all
+                    f.writelines(json.dumps(r) + "\n" for r in seed)
+                    f.write(json.dumps({"at": time.time(), "text": instruction.strip(), "files": [Path(p).name for p in saved],
+                                        "dashboard": bool(dashboard)}) + "\n")
             except OSError as e:
                 if new:  # don't leave a half-made autopilot behind
                     shutil.rmtree(folder, ignore_errors=True)
                     self.jobs.pop(name, None)
                 raise web.Fail(500, f"could not save the attached files: {e}") from None
+            self.asked[name] = time.time()
         runner.start(name, "build")
         return name
+
+    def busy(self):
+        """True while a run that isn't a service is going, so an update doesn't cut it off."""
+        return any((runner.lock(n).held() or {}).get("trigger") not in (None, "service") for n in list(self.jobs))
+
+    def upgrade(self):
+        if time.time() - self.updating < 600:
+            raise web.Fail(409, "it is already updating")
+        self.updating = time.time()
+        log(f"updating to {self.update}")
+        with open(spec.RUN / "update.log", "ab") as out:  # it restarts this program, so it must outlive it
+            proc.spawn([sys.executable, "-m", "autopilot", "update"], stdout=out, stderr=out, cwd=spec.HOME)
 
     def save_spec(self, name, text):
         folder = self.folder(name)
@@ -262,6 +306,39 @@ class Daemon:
         tmp = folder / ".autopilot.tmp"
         tmp.write_text(text, encoding="utf-8")
         os.replace(tmp, folder / "autopilot.md")
+
+
+def halt(name):
+    """Stop a run for pause or restart, but let a build finish, or its work is thrown away."""
+    if (runner.lock(name).held() or {}).get("trigger") not in runner.AI:
+        runner.stop(name)
+
+
+def newer(tag):
+    num = lambda v: tuple(int(x) for x in re.findall(r"\d+", v))
+    return num(tag) > num(__version__)
+
+
+def updater(d):
+    """Look for a new release now and then, and install it by itself unless auto_update = false."""
+    time.sleep(60)
+    tried = 0
+    while True:
+        wait = CHECK
+        try:
+            tag = spec.latest()
+            if tag and newer(tag):
+                d.update = tag.lstrip("v")
+                # wait for runs to finish, and don't retry a failed install more than once a day
+                if spec.config().get("auto_update", True) is not False and time.time() - tried > 86400:
+                    if d.busy():
+                        wait = 600
+                    else:
+                        tried = time.time()
+                        d.upgrade()
+        except Exception as e:  # no internet, a bad config or a failed start must not end the checks
+            log(f"update check: {e}")
+        time.sleep(wait)
 
 
 def attachments(files):
@@ -323,6 +400,7 @@ def main():
     d = Daemon()
     threading.Thread(target=web.serve, args=(d,), daemon=True).start()
     threading.Thread(target=watchdog, args=(d,), daemon=True).start()
+    threading.Thread(target=updater, args=(d,), daemon=True).start()
     while True:
         try:
             d.tick()

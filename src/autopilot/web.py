@@ -166,7 +166,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 folder = d.folder(q.get("name"))
                 md = folder / "autopilot.md"
                 return ({"name": folder.name, "text": md.read_text(encoding="utf-8") if md.exists() else "",
-                         "files": self.files(folder, d.jobs[folder.name].job), "runs": runner.runs(folder.name)},)
+                         "files": self.files(folder, d.jobs[folder.name].job), "runs": runner.runs(folder.name),
+                         "asked": runner.asked(folder)},)
             case ("GET", "/api/log"):
                 logs = d.folder(q.get("name")) / "logs"
                 run = q.get("run")
@@ -199,6 +200,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return ({"ok": True},)
             case ("POST", "/api/action"):
                 d.action(body.get("name"), body.get("action"))
+                return ({"ok": True},)
+            case ("POST", "/api/update"):
+                if not d.update:
+                    raise Fail(400, "you already have the newest version")
+                d.upgrade()
                 return ({"ok": True},)
             case ("POST", "/api/pause_all"):
                 d.pause_all(body.get("paused"))

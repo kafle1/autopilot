@@ -5,9 +5,11 @@ import os
 import re
 import platform
 import secrets
+import ssl
 import sys
 import threading
 import tomllib
+import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -21,7 +23,7 @@ KEYS = {"about", "schedule", "every", "keepalive", "run", "dir", "timeout", "not
 NOTIFY = ("fail", "always", "result", "never")
 ANDROID = hasattr(sys, "getandroidapilevel") or "com.termux" in os.environ.get("PREFIX", "")
 OS = "Android" if ANDROID else {"Darwin": "macOS"}.get(platform.system(), platform.system())
-FRONT = re.compile(r"\A﻿?\+\+\+[ \t]*\r?\n(.*?)\r?\n?\+\+\+[ \t]*(?:\r?\n|\Z)(.*)\Z", re.S)
+FRONT = re.compile(r"\A﻿?\s*\+\+\+[ \t]*\r?\n(.*?)\r?\n?\+\+\+[ \t]*(?:\r?\n|\Z)(.*)\Z", re.S)
 
 
 class SpecError(Exception):
@@ -54,6 +56,22 @@ def save_config(cfg):
     if os.name != "nt":
         tmp.chmod(0o600)
     os.replace(tmp, CONFIG)
+
+
+TLS = ssl.create_default_context()
+if not TLS.cert_store_stats()["x509_ca"] and os.path.exists("/etc/ssl/cert.pem"):
+    TLS.load_verify_locations("/etc/ssl/cert.pem")  # python.org's mac build has no certificates until its installer script runs
+
+
+def fetch(req, timeout):
+    return urllib.request.urlopen(req, timeout=timeout, context=TLS)
+
+
+def latest():
+    """The newest release tag, like v0.2.0, or "" when there is none."""
+    # the api allows 60 calls an hour per address, which a shared connection runs out of; this redirect has no limit
+    with fetch(urllib.request.Request(f"https://github.com/{REPO}/releases/latest", method="HEAD"), 30) as r:
+        return r.url.partition("/releases/tag/")[2]
 
 
 def _toml(v):
@@ -224,7 +242,7 @@ def parse(text, folder):
     sched = s.get("schedule") or []
     job.schedule = [sched] if isinstance(sched, str) else [str(x) for x in sched]
     job.crons = [Cron(x) for x in job.schedule]
-    if s.get("every"):
+    if s.get("every") not in (None, ""):  # every = 0 must fail loudly, not quietly mean "by hand"
         job.every = duration(s["every"])
         if job.every < 10:
             raise SpecError("every must be at least 10s")
@@ -319,6 +337,7 @@ Rules:
 - Test any script once, in a way with no real effect: do not send messages, apply, buy, post or delete anything real while testing.
 - Do not run the real job now. The scheduler starts it.
 - Never write passwords or keys into files unless the owner gave them to you. If something is missing, like a login, write what the owner must do into NEEDS.md in the folder.
+- Always write autopilot.md, even when something is missing. Then its runs must check for the missing thing first and stop with one short line saying what the owner still has to do, so it starts working by itself once they do it.
 - Your very last line must be one short sentence saying what you set up and when it runs."""
 
 ANDROID_TIP = """

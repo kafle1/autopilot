@@ -13,7 +13,8 @@ from pathlib import Path
 from . import proc, spec
 
 ORDER = ("claude", "codex", "opencode")
-SCRUB = re.compile(r"^(ANTHROPIC_|OPENAI_|CLAUDE_CODE_USE_)|^(CLAUDECODE|CODEX_API_KEY|GEMINI_API_KEY|GOOGLE_API_KEY|OPENROUTER_API_KEY|AWS_BEARER_TOKEN_BEDROCK)$")
+SCRUB = re.compile(r"^(ANTHROPIC_|OPENAI_|CLAUDE_CODE_USE_)|^(CLAUDECODE|CODEX_API_KEY|GEMINI_API_KEY|GOOGLE_API_KEY|OPENROUTER_API_KEY|AWS_BEARER_TOKEN_BEDROCK|"
+                   r"GROQ_API_KEY|MISTRAL_API_KEY|DEEPSEEK_API_KEY|XAI_API_KEY|TOGETHER_API_KEY|FIREWORKS_API_KEY|AZURE_OPENAI_API_KEY|CEREBRAS_API_KEY)$")
 # opencode hangs forever on a provider error such as a used-up plan, so its own error log line ends the run
 OPENCODE_FATAL = re.compile(r'level=ERROR .*message="stream error".* small=false')
 MODEL_FLAG = {"claude": "--model", "codex": "-m", "opencode": "-m"}

@@ -19,7 +19,7 @@ def send(title, message):
         headers["Click"] = f"https://{cfg['remote_host']}/"
     req = urllib.request.Request(f"https://ntfy.sh/{topic}", data=message[:1000].encode(), headers=headers)
     try:
-        urllib.request.urlopen(req, timeout=15).close()
+        spec.fetch(req, 15).close()
     except OSError:
         pass  # an alert is never worth failing a job for
 
